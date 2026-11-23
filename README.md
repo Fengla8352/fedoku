@@ -20,7 +20,9 @@ src/
                         X-Wing, XY-Wing, Remote Pair, XYZ-Wing, Swordfish, W-Wing,
                         Skyscraper, XY-Chain, Simple Coloring)
     __tests__/
-  ui/                   React sučelje (Faza 3+)
+  game/                 stanje igre (čisti TS): reducer akcija, ručni unos i provjera,
+                        poništi, bilješke/automatski kandidati, spremanje u localStorage
+  ui/                   React sučelje: mreža, tipkovnica, alati, izbornik "Nova igra"
 ```
 
 ## Naredbe
