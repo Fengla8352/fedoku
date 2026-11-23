@@ -8,6 +8,7 @@ import { techniqueName } from '../core/hints/explain';
 import { findHint } from '../core/hints/hint';
 import type { CellIndex, Mask } from '../core/types';
 import type { Action, GameState, Message, Rating, Snapshot } from './types';
+import { formatTime } from './time';
 import { MIN_GIVENS, checkEntry } from './validate';
 
 const HISTORY_LIMIT = 300;
@@ -35,6 +36,8 @@ export function initialState(): GameState {
     rating: null,
     source: 'manual',
     partialNotes: false,
+    elapsedMs: 0,
+    paused: false,
   };
 }
 
@@ -66,10 +69,26 @@ const pushHistory = (s: GameState): Snapshot[] => [...s.history, snapshot(s)].sl
 const isSolved = (values: readonly number[], solution: readonly number[] | null) =>
   !!solution && values.every((v, i) => v === solution[i]);
 
-function solvedText(r: Rating | null): string {
-  if (r && !('beyond' in r)) return `Bravo, sudoku je riješen! Najteža potrebna tehnika: ${techniqueName(r.hardest)}.`;
-  return 'Bravo, sudoku je riješen!';
+function solvedText(r: Rating | null, elapsedMs: number): string {
+  const time = ` Vrijeme: ${formatTime(elapsedMs)}.`;
+  if (r && !('beyond' in r)) return `Bravo, sudoku je riješen!${time} Najteža potrebna tehnika: ${techniqueName(r.hardest)}.`;
+  return `Bravo, sudoku je riješen!${time}`;
 }
+
+/** Teče li vrijeme (igra u tijeku, nije pauzirana ni riješena). */
+export const timerRunning = (s: Pick<GameState, 'phase' | 'paused' | 'solved'>): boolean =>
+  s.phase === 'play' && !s.paused && !s.solved;
+
+/** Radnje dopuštene dok je igra pauzirana (sve ostalo se zanemaruje). */
+const ALLOWED_WHILE_PAUSED = new Set<Action['type']>([
+  'resume',
+  'pause',
+  'newEntry',
+  'loadText',
+  'loadPuzzle',
+  'dismissMessage',
+  'closeHint',
+]);
 
 /** Upisuje broj u igri i briše ga iz bilješki susjeda. */
 function placeValue(s: GameState, cell: CellIndex, digit: number): GameState {
@@ -89,7 +108,7 @@ function placeValue(s: GameState, cell: CellIndex, digit: number): GameState {
     history: pushHistory(s),
     wrong: s.wrong.filter((c) => c !== cell),
     solved,
-    message: solved ? { kind: 'success', text: solvedText(s.rating) } : s.message,
+    message: solved ? { kind: 'success', text: solvedText(s.rating, s.elapsedMs) } : s.message,
   };
 }
 
@@ -172,6 +191,7 @@ function startPlay(
   return {
     ...s,
     rating,
+    paused: false,
     phase: 'play',
     solution,
     wrong,
@@ -242,6 +262,7 @@ function move(s: GameState, dRow: number, dCol: number): GameState {
 
 /** Savjet vrijedi samo dok se mreža ne promijeni. */
 export function reducer(s: GameState, a: Action): GameState {
+  if (s.paused && !ALLOWED_WHILE_PAUSED.has(a.type)) return s;
   const next = baseReducer(s, a);
   if (
     next.hint &&
@@ -317,6 +338,14 @@ function applyHint(s: GameState): GameState {
 
 function baseReducer(s: GameState, a: Action): GameState {
   switch (a.type) {
+    case 'tick':
+      if (!timerRunning(s) || !(a.ms > 0)) return s;
+      return { ...s, elapsedMs: s.elapsedMs + a.ms };
+    case 'pause':
+      if (!timerRunning(s)) return s;
+      return { ...s, paused: true, hint: null };
+    case 'resume':
+      return s.paused ? { ...s, paused: false } : s;
     case 'hint':
       return requestHint(s);
     case 'applyHint':

@@ -3,7 +3,8 @@ import { DIFFICULTY_LABEL } from '../core/generator/grade';
 import type { Difficulty } from '../core/types';
 import { startGeneration, type GenerationJob } from '../game/generatorClient';
 import { findConflicts } from '../core/grid';
-import { digitCounts, displayedNotes, givensText, initialState, reducer } from '../game/reducer';
+import { digitCounts, displayedNotes, givensText, initialState, reducer, timerRunning } from '../game/reducer';
+import { formatTime } from '../game/time';
 import { loadGame, loadSettings, saveGame, saveSettings, type Settings, type Theme } from '../game/storage';
 import type { Action } from '../game/types';
 import { Board } from './Board';
@@ -94,6 +95,35 @@ export function App() {
   }, [cancelGenerate]);
 
   useEffect(() => saveGame(state), [state]);
+
+  // Tajmer: dok igra teče, svake sekunde javljamo proteklo vrijeme.
+  const running = timerRunning(state);
+  const pausedRef = useRef(state.paused);
+  pausedRef.current = state.paused;
+  useEffect(() => {
+    if (!running) return;
+    let last = performance.now();
+    const tick = () => {
+      const now = performance.now();
+      // Ograničenje: ako je uređaj "spavao", ne brojimo cijelo to vrijeme.
+      dispatch({ type: 'tick', ms: Math.min(now - last, 5000) });
+      last = now;
+    };
+    const id = setInterval(tick, 1000);
+    return () => {
+      clearInterval(id);
+      tick();
+    };
+  }, [running]);
+
+  // Izlazak iz aplikacije (druga aplikacija, zaključan zaslon) automatski pauzira igru.
+  useEffect(() => {
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') dispatch({ type: 'pause' });
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => document.removeEventListener('visibilitychange', onVisibility);
+  }, []);
   useEffect(() => {
     saveSettings(settings);
     const root = document.documentElement;
@@ -103,6 +133,7 @@ export function App() {
 
   const act = useCallback((a: Action) => dispatch(a), []);
   const select = useCallback((cell: number) => dispatch({ type: 'select', cell }), []);
+  const resume = useCallback(() => dispatch({ type: 'resume' }), []);
 
   // Tipkovnica (računalo).
   useEffect(() => {
@@ -119,6 +150,7 @@ export function App() {
       else if (k === 'n' || k === 'p') dispatch({ type: 'togglePencil' });
       else if (k === 'h' || k === '?') dispatch({ type: 'hint' });
       else if (k === 'Escape') dispatch({ type: 'closeHint' });
+      else if (k === ' ') dispatch({ type: pausedRef.current ? 'resume' : 'pause' });
       else return;
       e.preventDefault();
     };
@@ -137,11 +169,6 @@ export function App() {
       <header className="top">
         <div className="title">
           <h1>Fedoku</h1>
-          {state.phase === 'play' && state.rating && (
-            <span className="chip" title="Težina prema najtežoj potrebnoj tehnici">
-              {'beyond' in state.rating ? 'Izvan dosega tehnika' : DIFFICULTY_LABEL[state.rating.difficulty]}
-            </span>
-          )}
         </div>
         <div className="top-actions">
           {install && (
@@ -203,6 +230,43 @@ export function App() {
 
       <MessageBar message={state.message} onClose={() => act({ type: 'dismissMessage' })} />
 
+      {!isEntry && (
+        <div className="status-row">
+          <span>
+            {state.rating && (
+              <span className="chip" title="Težina prema najtežoj potrebnoj tehnici">
+                {'beyond' in state.rating ? 'Izvan dosega tehnika' : DIFFICULTY_LABEL[state.rating.difficulty]}
+              </span>
+            )}
+          </span>
+          <span className="timer">
+            <span className="timer-value" aria-label="Vrijeme rješavanja">
+              {formatTime(state.elapsedMs)}
+            </span>
+            {!state.solved && (
+              <button
+                type="button"
+                className="icon-btn round"
+                onClick={() => act({ type: state.paused ? 'resume' : 'pause' })}
+                aria-label={state.paused ? 'Nastavi' : 'Pauza'}
+                title={state.paused ? 'Nastavi' : 'Pauza'}
+              >
+                {state.paused ? (
+                  <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden>
+                    <path d="M7 4l13 8-13 8z" fill="currentColor" />
+                  </svg>
+                ) : (
+                  <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden>
+                    <rect x="5" y="4" width="5" height="16" rx="1" fill="currentColor" />
+                    <rect x="14" y="4" width="5" height="16" rx="1" fill="currentColor" />
+                  </svg>
+                )}
+              </button>
+            )}
+          </span>
+        </div>
+      )}
+
       <Board
         values={state.values}
         givens={state.givens}
@@ -211,13 +275,15 @@ export function App() {
         conflicts={conflicts}
         wrong={state.wrong}
         highlightSame={settings.highlightSame}
-        hint={bHint}
+        hint={state.paused ? null : bHint}
+        paused={state.paused}
+        onResume={resume}
         onSelect={select}
       />
       </main>
 
-      <div className="controls">
-      {state.hint && (
+      <div className={state.paused ? 'controls locked' : 'controls'} aria-disabled={state.paused}>
+      {state.hint && !state.paused && (
         <HintPanel
           hint={state.hint}
           canUsePartialNotes={!state.autoCandidates}

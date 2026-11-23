@@ -45,6 +45,8 @@ export function loadGame(): GameState | null {
     rating: g.rating ?? null,
     source: g.source ?? 'manual',
     partialNotes: g.partialNotes ?? false,
+    elapsedMs: typeof g.elapsedMs === 'number' ? g.elapsedMs : 0,
+    paused: g.paused ?? false,
   };
 }
 

@@ -184,7 +184,7 @@ describe('ocjena težine u igri', () => {
   it('poruka o rješenju navodi najtežu tehniku', () => {
     let s = playing();
     for (let i = 0; i < 81; i++) if (!s.values[i]) s = run(s, { type: 'select', cell: i }, { type: 'input', digit: SOLUTION[i] });
-    expect(s.message?.text).toBe('Bravo, sudoku je riješen! Najteža potrebna tehnika: Goli single.');
+    expect(s.message?.text).toBe('Bravo, sudoku je riješen! Vrijeme: 0:00. Najteža potrebna tehnika: Goli single.');
   });
 });
 
@@ -195,5 +195,47 @@ describe('izvor zagonetke', () => {
     const manual = run(initialState(), { type: 'loadText', text: EASY }, { type: 'startFromEntry' });
     expect(manual.source).toBe('manual');
     expect(reducer(gen, { type: 'newEntry' }).source).toBe('manual');
+  });
+});
+
+describe('tajmer i pauza', () => {
+  it('vrijeme teče samo dok se igra', () => {
+    expect(reducer(initialState(), { type: 'tick', ms: 1000 }).elapsedMs).toBe(0); // ručni unos
+    let s = run(playing(), { type: 'tick', ms: 1000 }, { type: 'tick', ms: 500 });
+    expect(s.elapsedMs).toBe(1500);
+    s = run(s, { type: 'pause' }, { type: 'tick', ms: 1000 });
+    expect(s.elapsedMs).toBe(1500);
+    s = run(s, { type: 'resume' }, { type: 'tick', ms: 1000 });
+    expect(s.elapsedMs).toBe(2500);
+  });
+
+  it('za vrijeme pauze nema unosa ni savjeta', () => {
+    const p = run(playing(), { type: 'select', cell: 0 }, { type: 'pause' });
+    expect(run(p, { type: 'input', digit: 4 })).toBe(p);
+    expect(run(p, { type: 'hint' })).toBe(p);
+    expect(run(p, { type: 'erase' })).toBe(p);
+    expect(run(p, { type: 'undo' })).toBe(p);
+    expect(run(p, { type: 'resume' }, { type: 'input', digit: 4 }).values[0]).toBe(4);
+  });
+
+  it('pauza zatvara savjet; nova igra kreće od nule i nije pauzirana', () => {
+    const p = run(playing(), { type: 'hint' }, { type: 'tick', ms: 5000 }, { type: 'pause' });
+    expect(p.hint).toBeNull();
+    const n = reducer(p, { type: 'loadPuzzle', values: parseValues(EASY) });
+    expect(n.elapsedMs).toBe(0);
+    expect(n.paused).toBe(false);
+  });
+
+  it('uređivanje ručnog unosa ne briše vrijeme', () => {
+    const s = run(initialState(), { type: 'loadText', text: EASY }, { type: 'startFromEntry' }, { type: 'tick', ms: 7000 }, { type: 'backToEntry' }, { type: 'startFromEntry' });
+    expect(s.elapsedMs).toBe(7000);
+  });
+
+  it('poruka o rješenju navodi vrijeme; nakon rješenja vrijeme stoji', () => {
+    let s = run(playing(), { type: 'tick', ms: 125_000 });
+    for (let i = 0; i < 81; i++) if (!s.values[i]) s = run(s, { type: 'select', cell: i }, { type: 'input', digit: SOLUTION[i] });
+    expect(s.message?.text).toContain('Vrijeme: 2:05.');
+    expect(run(s, { type: 'tick', ms: 1000 }).elapsedMs).toBe(125_000);
+    expect(run(s, { type: 'pause' }).paused).toBe(false);
   });
 });

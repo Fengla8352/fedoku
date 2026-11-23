@@ -13,6 +13,9 @@ interface BoardProps {
   wrong: CellIndex[];
   highlightSame: boolean;
   hint: BoardHint | null;
+  /** Pauza: brojevi i bilješke se ne prikazuju. */
+  paused?: boolean;
+  onResume?: () => void;
   onSelect: (cell: CellIndex) => void;
 }
 
@@ -22,6 +25,26 @@ export const Board = memo(function Board(p: BoardProps) {
   const sel = p.selected;
   const selValue = sel !== null ? p.values[sel] : 0;
   const wrong = new Set(p.wrong);
+
+  if (p.paused) {
+    // Za vrijeme pauze ne crtamo ni brojeve ni bilješke — samo praznu mrežu.
+    return (
+      <div className="board paused" aria-label="Igra je pauzirana">
+        {p.values.map((_, i) => {
+          const classes = ['cell'];
+          if (colOf(i) % 3 === 2 && colOf(i) < 8) classes.push('edge-r');
+          if (rowOf(i) % 3 === 2 && rowOf(i) < 8) classes.push('edge-b');
+          return <div key={i} className={classes.join(' ')} />;
+        })}
+        <div className="pause-overlay">
+          <p>Pauza</p>
+          <button type="button" className="btn primary" onClick={p.onResume}>
+            ▶ Nastavi
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="board" role="grid" aria-label="Sudoku mreža">

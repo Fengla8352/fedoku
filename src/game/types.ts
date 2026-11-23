@@ -52,6 +52,10 @@ export interface GameState extends Snapshot {
   source: PuzzleSource;
   /** Korisnik bilješke piše djelomično — savjet ih ne provjerava i ne koristi. */
   partialNotes: boolean;
+  /** Vrijeme rješavanja u milisekundama (bez pauza). */
+  elapsedMs: number;
+  /** Igra je pauzirana: mreža je skrivena, unos zaključan. */
+  paused: boolean;
 }
 
 export type PuzzleSource = 'generated' | 'manual';
@@ -84,4 +88,8 @@ export type Action =
   | { type: 'applyHint' }
   | { type: 'closeHint' }
   /** Uključuje/isključuje djelomične bilješke i odmah traži novi savjet. */
-  | { type: 'setPartialNotes'; value: boolean };
+  | { type: 'setPartialNotes'; value: boolean }
+  /** Proteklo vrijeme (šalje ga sučelje svake sekunde dok igra teče). */
+  | { type: 'tick'; ms: number }
+  | { type: 'pause' }
+  | { type: 'resume' };
