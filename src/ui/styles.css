@@ -349,8 +349,8 @@ button {
   color: var(--accent);
   line-height: 1.1;
 }
+/* Način olovke: ista veličina, samo druga boja (da se tipkovnica ne "pomiče"). */
 .keypad.pencil .key-digit {
-  font-size: calc(var(--board) / 9 * 0.36);
   color: var(--note);
 }
 .key-count {
