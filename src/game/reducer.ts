@@ -32,6 +32,7 @@ export function initialState(): GameState {
     solved: false,
     hint: null,
     rating: null,
+    source: 'manual',
   };
 }
 
@@ -362,6 +363,7 @@ function baseReducer(s: GameState, a: Action): GameState {
         autoCandidates: s.autoCandidates,
         values: [...a.values],
         givens: a.values.map((v) => v !== 0),
+        source: a.source ?? 'manual',
       };
       return startPlay(base, u.solution, [], null, a.rating);
     }

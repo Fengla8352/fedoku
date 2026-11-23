@@ -46,7 +46,11 @@ export interface GameState extends Snapshot {
   hint: HintView | null;
   /** Ocjena težine trenutne zagonetke. */
   rating: Rating | null;
+  /** Odakle je zagonetka: generirana (gotova, ne treba uređivanje) ili ručno unesena. */
+  source: PuzzleSource;
 }
+
+export type PuzzleSource = 'generated' | 'manual';
 
 export type Rating = { difficulty: Difficulty; hardest: TechniqueId } | { beyond: true };
 
@@ -67,7 +71,7 @@ export type Action =
   | { type: 'loadText'; text: string }
   | { type: 'setEntryLayer'; layer: EntryLayer }
   | { type: 'startFromEntry' }
-  | { type: 'loadPuzzle'; values: number[]; rating?: Rating }
+  | { type: 'loadPuzzle'; values: number[]; rating?: Rating; source?: PuzzleSource }
   | { type: 'backToEntry' }
   | { type: 'check' }
   | { type: 'dismissMessage' }

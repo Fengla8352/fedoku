@@ -72,7 +72,12 @@ export function App() {
         job.current = null;
         setGenerating(null);
         setSheetOpen(false);
-        dispatch({ type: 'loadPuzzle', values: r.puzzle, rating: { difficulty: r.difficulty, hardest: r.hardest } });
+        dispatch({
+          type: 'loadPuzzle',
+          values: r.puzzle,
+          rating: { difficulty: r.difficulty, hardest: r.hardest },
+          source: 'generated',
+        });
       },
       (e: unknown) => {
         if (job.current !== j) return;
@@ -246,14 +251,6 @@ export function App() {
           </button>
           <button
             type="button"
-            className={state.pencil ? 'tool on' : 'tool'}
-            aria-pressed={state.pencil}
-            onClick={() => act({ type: 'togglePencil' })}
-          >
-            <span aria-hidden>✎</span>Olovka
-          </button>
-          <button
-            type="button"
             className={state.autoCandidates ? 'tool on' : 'tool'}
             aria-pressed={state.autoCandidates}
             onClick={() => act({ type: 'toggleAuto' })}
@@ -268,11 +265,24 @@ export function App() {
           >
             <span aria-hidden>💡</span>Savjet
           </button>
-          <button type="button" className="tool" onClick={() => act({ type: 'check' })}>
-            <span aria-hidden>✓</span>Provjeri
-          </button>
-          <button type="button" className="tool" onClick={() => act({ type: 'backToEntry' })}>
-            <span aria-hidden>✐</span>Uredi
+          {/* Provjera i uređivanje imaju smisla samo za ručno unesene zagonetke. */}
+          {state.source === 'manual' && (
+            <>
+              <button type="button" className="tool" onClick={() => act({ type: 'check' })}>
+                <span aria-hidden>✓</span>Provjeri
+              </button>
+              <button type="button" className="tool" onClick={() => act({ type: 'backToEntry' })}>
+                <span aria-hidden>✐</span>Uredi
+              </button>
+            </>
+          )}
+          <button
+            type="button"
+            className={state.pencil ? 'tool on' : 'tool'}
+            aria-pressed={state.pencil}
+            onClick={() => act({ type: 'togglePencil' })}
+          >
+            <span aria-hidden>✎</span>Olovka
           </button>
         </div>
       )}

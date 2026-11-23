@@ -187,3 +187,13 @@ describe('ocjena težine u igri', () => {
     expect(s.message?.text).toBe('Bravo, sudoku je riješen! Najteža potrebna tehnika: Goli single.');
   });
 });
+
+describe('izvor zagonetke', () => {
+  it('generirana zagonetka je "generated", ručni unos "manual"', () => {
+    const gen = reducer(initialState(), { type: 'loadPuzzle', values: parseValues(EASY), source: 'generated' });
+    expect(gen.source).toBe('generated');
+    const manual = run(initialState(), { type: 'loadText', text: EASY }, { type: 'startFromEntry' });
+    expect(manual.source).toBe('manual');
+    expect(reducer(gen, { type: 'newEntry' }).source).toBe('manual');
+  });
+});
