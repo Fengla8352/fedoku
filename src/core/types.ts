@@ -68,6 +68,8 @@ export interface PatternCell {
 export interface Focus {
   units: Unit[];
   cells: CellIndex[];
+  /** Znamenka na koju treba obratiti pažnju (ako je tehnika vezana uz jednu znamenku). */
+  digit?: Digit;
 }
 
 export type TechniqueId =
@@ -139,6 +141,84 @@ export type Explanation =
       unit: Unit;
       cells: CellIndex[];
       digits: Digit[];
+    }
+  | {
+      /** X-Wing (size 2) i Swordfish (size 3). */
+      kind: 'fish';
+      size: 2 | 3;
+      digit: Digit;
+      /** Redovi (ili stupci) u kojima je znamenka ograničena na `size` mjesta. */
+      baseUnits: Unit[];
+      /** Stupci (ili redovi) iz kojih se briše. */
+      coverUnits: Unit[];
+      cells: CellIndex[];
+    }
+  | {
+      /** Središte {x,y}, krakovi {x,z} i {y,z}; z se briše. */
+      kind: 'xyWing';
+      pivot: CellIndex;
+      pincers: [CellIndex, CellIndex];
+      x: Digit;
+      y: Digit;
+      z: Digit;
+    }
+  | {
+      /** Središte {x,y,z}, krakovi {x,z} i {y,z}; z se briše iz ćelija koje vide sve tri. */
+      kind: 'xyzWing';
+      pivot: CellIndex;
+      pincers: [CellIndex, CellIndex];
+      x: Digit;
+      y: Digit;
+      z: Digit;
+    }
+  | {
+      /** Lanac ćelija s istim parom kandidata; krajevi imaju suprotne vrijednosti. */
+      kind: 'remotePair';
+      digits: [Digit, Digit];
+      chain: CellIndex[];
+    }
+  | {
+      /** Dvije ćelije {x,y} povezane jakom vezom na x; y se briše. */
+      kind: 'wWing';
+      cells: [CellIndex, CellIndex];
+      /** Znamenka jake veze. */
+      x: Digit;
+      /** Znamenka koja se briše. */
+      y: Digit;
+      /** Krajevi jake veze: link[0] vidi cells[0], link[1] vidi cells[1]. */
+      link: [CellIndex, CellIndex];
+      linkUnit: Unit;
+    }
+  | {
+      kind: 'skyscraper';
+      digit: Digit;
+      /** Dva reda (ili stupca) s točno dva mjesta za znamenku. */
+      lines: [Unit, Unit];
+      /** Poravnati krajevi (isti stupac/red) — najviše jedan je znamenka. */
+      base: [CellIndex, CellIndex];
+      /** Vrhovi — barem jedan je znamenka. */
+      tops: [CellIndex, CellIndex];
+    }
+  | {
+      /**
+       * Lanac ćelija s dva kandidata. Ako početak NIJE z, onda je links[0].value,
+       * pa sljedeća ćelija nije ta vrijednost... sve do kraja koji mora biti z.
+       */
+      kind: 'xyChain';
+      z: Digit;
+      chain: { cell: CellIndex; /** vrijednost ćelije uz pretpostavku da početak nije z */ value: Digit }[];
+    }
+  | {
+      kind: 'simpleColoring';
+      digit: Digit;
+      /** 'wrap': dvije ćelije iste boje se vide, pa je ta boja kriva. 'trap': ćelija vidi obje boje. */
+      rule: 'wrap' | 'trap';
+      colorA: CellIndex[];
+      colorB: CellIndex[];
+      /** Za 'wrap': dvije ćelije iste boje koje se vide. */
+      clash?: [CellIndex, CellIndex];
+      /** Lanac jakih veza (parovi ćelija) koji gradi bojanje. */
+      links: [CellIndex, CellIndex][];
     };
 
 /** Jedan logički korak koji vraća tehnika. */

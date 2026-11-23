@@ -1,6 +1,6 @@
-import { bit } from '../../mask';
-import type { CandidateRef, CellIndex, Digit, SolverState, Unit } from '../../types';
-
+import { sees } from '../../grid';
+import { bit, digitsOf, popcount } from '../../mask';
+import type { CandidateRef, CellIndex, Digit, Mask, SolverState, Unit } from '../../types';
 /** Prazne ćelije jedinice koje imaju kandidat d. */
 export function cellsWithCandidate(s: SolverState, unit: Unit, d: Digit): CellIndex[] {
   const b = bit(d);
@@ -43,3 +43,31 @@ export function eliminationsFor(
   }
   return out;
 }
+
+/** Prazne ćelije s točno dva kandidata. */
+export function bivalueCells(s: SolverState): CellIndex[] {
+  const out: CellIndex[] = [];
+  for (let i = 0; i < 81; i++) {
+    if (!s.values[i] && popcount(s.candidates[i]) === 2) out.push(i);
+  }
+  return out;
+}
+
+/** Eliminacije znamenke d iz svih ćelija koje vide sve `cells` (osim njih samih i `exclude`). */
+export function eliminateSeeingAll(
+  s: SolverState,
+  cells: readonly CellIndex[],
+  d: Digit,
+  exclude: readonly CellIndex[] = [],
+): CandidateRef[] {
+  const out: CandidateRef[] = [];
+  const b = bit(d);
+  for (let c = 0; c < 81; c++) {
+    if (!(s.candidates[c] & b) || cells.includes(c) || exclude.includes(c)) continue;
+    if (cells.every((x) => sees(x, c))) out.push({ cell: c, digit: d });
+  }
+  return out;
+}
+
+/** Druga znamenka bivalentne ćelije. */
+export const otherDigit = (m: Mask, d: Digit): Digit => digitsOf(m & ~bit(d))[0];

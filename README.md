@@ -16,6 +16,9 @@ src/
       backtrack.ts      pretraživanje: broj rješenja, provjera jedinstvenosti
       stepSolver.ts     findNextStep (najjednostavniji korak), solveLogically
       techniques/       jedna datoteka po tehnici, isto sučelje Technique
+                        (singleovi, pointing, box-line, goli/skriveni par i trojka,
+                        X-Wing, XY-Wing, Remote Pair, XYZ-Wing, Swordfish, W-Wing,
+                        Skyscraper, XY-Chain, Simple Coloring)
     __tests__/
   ui/                   React sučelje (Faza 3+)
 ```

@@ -11,7 +11,7 @@ import { randomPuzzle } from './helpers';
 const EASY = '003020600900305001001806400008102900700000008006708200002609500800203009005010300';
 // Poznata "teška" zagonetka (teška za pretraživanje, ali je osnovne tehnike rješavaju).
 const BRUTE_HARD = '4.....8.5.3..........7......2.....6.....8.4......1.......6.3.7.5..2.....1.4......';
-// Zagonetka za koju 6 osnovnih tehnika nije dovoljno.
+// Zagonetka za koju nijedna implementirana tehnika nije dovoljna.
 const STUCK = '6..23.4....89....3......62.5.....3.2.69..7...3...8..9....4....5.1..........85.9.4';
 
 /** Provjerava da korak ne proturječi poznatom rješenju. */
@@ -53,10 +53,10 @@ describe('rješavač korak po korak', () => {
     r.steps.forEach((s) => expectSound(s, sol.solution));
   });
 
-  it('nikad ne briše točan kandidat niti upisuje krivi broj (60 nasumičnih zagonetki)', () => {
+  it('nikad ne briše točan kandidat niti upisuje krivi broj (150 nasumičnih zagonetki)', () => {
     const used = new Map<TechniqueId, number>();
     let solvedCount = 0;
-    for (let seed = 1; seed <= 60; seed++) {
+    for (let seed = 1; seed <= 150; seed++) {
       const { puzzle, solution } = randomPuzzle(seed);
       let state = createState(puzzle);
       for (let n = 0; n < 500; n++) {
@@ -75,8 +75,8 @@ describe('rješavač korak po korak', () => {
       if (state.values.every((v) => v)) solvedCount++;
     }
     expect(solvedCount).toBeGreaterThan(0);
-    for (const id of ['nakedSingle', 'hiddenSingle', 'pointing', 'boxLine', 'nakedPair'] as const) {
+    for (const id of ['nakedSingle', 'hiddenSingle', 'pointing', 'boxLine', 'nakedPair', 'xyWing', 'xyChain'] as const) {
       expect(used.get(id) ?? 0).toBeGreaterThan(0);
     }
-  });
+  }, 60_000);
 });
