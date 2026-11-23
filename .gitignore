@@ -3,3 +3,5 @@ dist
 *.local
 coverage
 *.tsbuildinfo
+.wrangler
+worker/assets.gen.js

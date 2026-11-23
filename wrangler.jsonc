@@ -1,0 +1,10 @@
+{
+  // Objava na Cloudflare Workers: npm run deploy
+  // (build → scripts/embed-assets.mjs ugradi dist/ u Worker → wrangler deploy)
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "fedoku",
+  "main": "worker/index.js",
+  "compatibility_date": "2026-11-01",
+  "workers_dev": true,
+  "preview_urls": false
+}

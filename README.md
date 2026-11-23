@@ -45,7 +45,13 @@ Sve datoteke, uključujući Web Worker generatora, spremaju se u predmemoriju, p
 aplikacija nakon prvog otvaranja radi i bez interneta. Kad postoji nova verzija,
 aplikacija ponudi "Osvježi" (ne osvježava se sama usred igre).
 
-Za instalaciju na mobitel `dist/` mora biti posluženo preko HTTPS-a (npr. GitHub
-Pages, Netlify, Cloudflare Pages). Putanje su relativne (`base: './'`), pa radi i u podmapi.
+Za instalaciju na mobitel `dist/` mora biti posluženo preko HTTPS-a.
+
+**Objavljeno na: https://fedoku.racun8352.workers.dev** (Cloudflare Workers)
+
+Nova objava: `npm run deploy` (build → `scripts/embed-assets.mjs` ugradi `dist/` u
+Worker `worker/index.js` → `wrangler deploy`; treba `CLOUDFLARE_API_TOKEN` s dozvolom
+za Workers). Worker poslužuje `assets/*` s dugim cacheom, a `sw.js`, `index.html` i
+manifest s `no-cache`, da nova verzija uvijek stigne.
 - Android (Chrome): gumb "Instaliraj" u zaglavlju ili izbornik ⋮ → "Instaliraj aplikaciju".
 - iPhone (Safari): Dijeli → "Dodaj na početni zaslon".
