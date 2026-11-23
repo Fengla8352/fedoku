@@ -791,7 +791,8 @@ button {
   font-size: 1.4rem;
   font-weight: 600;
 }
+/* Za vrijeme pauze alati i tipkovnica se ne vide (prostor ostaje, pa se mreža ne pomiče). */
 .controls.locked {
-  opacity: 0.4;
+  visibility: hidden;
   pointer-events: none;
 }
