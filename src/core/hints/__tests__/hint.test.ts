@@ -121,3 +121,38 @@ describe('tekst objašnjenja', () => {
     expect(seen.size).toBe(17);
   });
 });
+
+describe('djelomične bilješke', () => {
+  it('poruka o nedostajućem kandidatu objašnjava zašto', () => {
+    const notes: (number | null)[] = computeCandidates(values);
+    notes[0] = bit(5); // točno je 4
+    const h = findHint({ values, givens, notes, solution });
+    if (h.kind !== 'issue') throw new Error(h.kind);
+    expect(h.text).toBe('U ćeliji (red 1, stupac 1) nedostaje kandidat 4.');
+    expect(h.why).toContain(
+      'Broj 4 je ovdje još moguć: 4 se ne nalazi ni u redu 1, ni u stupcu 1, ni u kvadratu 1, a nije ga isključila ni nijedna tehnika.',
+    );
+    expect(h.why.join(' ')).toMatch(/djelomične/);
+  });
+
+  it('ignoreNotes: bilješke se ne provjeravaju ni ne koriste', () => {
+    const notes: (number | null)[] = computeCandidates(values);
+    notes[0] = bit(5);
+    const h = findHint({ values, givens, notes, solution, ignoreNotes: true });
+    expect(h.kind).toBe('step');
+    expect(h).toMatchObject({ step: findNextStep(createState(values)) });
+  });
+
+  it('ignoreNotes i dalje javlja krivi broj', () => {
+    const v = [...values];
+    v[0] = 5;
+    expect(findHint({ values: v, givens, notes: noNotes, solution, ignoreNotes: true }).kind).toBe('issue');
+  });
+
+  it('ignoreNotes koristi već primijenjena brisanja (knownElim)', () => {
+    const knownElim = new Array(81).fill(0);
+    knownElim[0] = bit(5); // r1c1 {4,5} → ostaje samo 4
+    const h = findHint({ values, givens, notes: noNotes, solution, ignoreNotes: true, knownElim });
+    expect(h.kind === 'step' && h.step.placement).toEqual({ cell: 0, digit: 4 });
+  });
+});

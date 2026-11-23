@@ -18,6 +18,8 @@ export interface Snapshot {
    * Prikazani kandidati = izračunati & ~autoElim.
    */
   autoElim: Mask[];
+  /** Kandidati obrisani primjenom savjeta (dokazano točna brisanja). */
+  knownElim: Mask[];
 }
 
 export type MessageKind = 'error' | 'warning' | 'info' | 'success';
@@ -48,6 +50,8 @@ export interface GameState extends Snapshot {
   rating: Rating | null;
   /** Odakle je zagonetka: generirana (gotova, ne treba uređivanje) ili ručno unesena. */
   source: PuzzleSource;
+  /** Korisnik bilješke piše djelomično — savjet ih ne provjerava i ne koristi. */
+  partialNotes: boolean;
 }
 
 export type PuzzleSource = 'generated' | 'manual';
@@ -78,4 +82,6 @@ export type Action =
   /** Prvi klik daje razinu 1, svaki sljedeći otkriva više (do 3). */
   | { type: 'hint' }
   | { type: 'applyHint' }
-  | { type: 'closeHint' };
+  | { type: 'closeHint' }
+  /** Uključuje/isključuje djelomične bilješke i odmah traži novi savjet. */
+  | { type: 'setPartialNotes'; value: boolean };

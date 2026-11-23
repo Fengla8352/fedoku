@@ -220,6 +220,9 @@ export function App() {
       {state.hint && (
         <HintPanel
           hint={state.hint}
+          canUsePartialNotes={!state.autoCandidates}
+          partialNotes={state.partialNotes && !state.autoCandidates}
+          onPartialNotes={(value) => act({ type: 'setPartialNotes', value })}
           onMore={() => act({ type: 'hint' })}
           onApply={() => act({ type: 'applyHint' })}
           onClose={() => act({ type: 'closeHint' })}

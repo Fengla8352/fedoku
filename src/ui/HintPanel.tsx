@@ -3,6 +3,11 @@ import type { HintView } from '../game/types';
 
 interface Props {
   hint: HintView;
+  /** Bilješke se mogu proglasiti djelomičnim (samo bez automatskih kandidata). */
+  canUsePartialNotes: boolean;
+  /** Savjet trenutno zanemaruje bilješke. */
+  partialNotes: boolean;
+  onPartialNotes: (value: boolean) => void;
   onMore: () => void;
   onApply: () => void;
   onClose: () => void;
@@ -10,7 +15,7 @@ interface Props {
 
 const ROLE_ORDER: CellRole[] = ['target', 'pivot', 'pincer', 'base', 'link', 'colorA', 'colorB'];
 
-export function HintPanel({ hint, onMore, onApply, onClose }: Props) {
+export function HintPanel({ hint, canUsePartialNotes, partialNotes, onPartialNotes, onMore, onApply, onClose }: Props) {
   const d = hint.data;
   const close = (
     <button type="button" className="btn" onClick={onClose}>
@@ -23,11 +28,16 @@ export function HintPanel({ hint, onMore, onApply, onClose }: Props) {
       d.issue.kind === 'wrongValue'
         ? 'Obriši kriv broj'
         : d.issue.kind === 'missingCandidate'
-          ? 'Vrati kandidat'
-          : 'Obriši kandidat';
+          ? d.issue.items.length === 1
+            ? 'Vrati kandidat'
+            : 'Vrati kandidate'
+          : d.issue.items.length === 1
+            ? 'Obriši kandidat'
+            : 'Obriši kandidate';
+    const notesIssue = d.issue.kind !== 'wrongValue';
     return (
       <section className="hint-panel issue" aria-live="polite">
-        <h2>Prvo ispravi bilješke ili brojeve</h2>
+        <h2>{notesIssue ? 'Prvo provjeri bilješke' : 'Prvo ispravi broj'}</h2>
         <p>{d.text}</p>
         {d.details.length > 0 && (
           <ul>
@@ -36,8 +46,19 @@ export function HintPanel({ hint, onMore, onApply, onClose }: Props) {
             ))}
           </ul>
         )}
+        <div className="hint-why">
+          <strong>Zašto?</strong>
+          {d.why.map((t) => (
+            <p key={t}>{t}</p>
+          ))}
+        </div>
         <div className="hint-actions">
           {close}
+          {notesIssue && canUsePartialNotes && (
+            <button type="button" className="btn" onClick={() => onPartialNotes(true)}>
+              Moje bilješke su djelomične
+            </button>
+          )}
           <button type="button" className="btn primary" onClick={onApply}>
             {fix}
           </button>
@@ -92,6 +113,15 @@ export function HintPanel({ hint, onMore, onApply, onClose }: Props) {
           </ol>
           <p className="hint-result">{t.result}</p>
         </>
+      )}
+
+      {partialNotes && (
+        <p className="hint-note">
+          Savjet ne gleda tvoje bilješke (djelomične bilješke).{' '}
+          <button type="button" className="link-btn" onClick={() => onPartialNotes(false)}>
+            Moje bilješke su potpune
+          </button>
+        </p>
       )}
 
       <div className="hint-actions">

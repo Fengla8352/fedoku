@@ -33,7 +33,19 @@ const isArr81 = (a: unknown) => Array.isArray(a) && a.length === 81;
 export function loadGame(): GameState | null {
   const g = read<GameState>(GAME_KEY);
   if (!g || !isArr81(g.values) || !isArr81(g.givens) || !isArr81(g.notes) || !isArr81(g.autoElim)) return null;
-  return { ...g, history: Array.isArray(g.history) ? g.history : [], message: null, hint: null, rating: g.rating ?? null, source: g.source ?? 'manual' };
+  // Starije spremljene igre nemaju ova polja.
+  const knownElim = isArr81(g.knownElim) ? g.knownElim : new Array(81).fill(0);
+  const history = (Array.isArray(g.history) ? g.history : []).map((h) => ({ ...h, knownElim: h.knownElim ?? knownElim }));
+  return {
+    ...g,
+    knownElim,
+    history,
+    message: null,
+    hint: null,
+    rating: g.rating ?? null,
+    source: g.source ?? 'manual',
+    partialNotes: g.partialNotes ?? false,
+  };
 }
 
 export function saveGame(g: GameState): void {

@@ -1,5 +1,5 @@
 import { computeCandidates, createState } from '../candidates';
-import { PEERS } from '../grid';
+import { PEERS, boxOf, colOf, rowOf } from '../grid';
 import { bit, digitsOf } from '../mask';
 import { findNextStep } from '../solver/stepSolver';
 import type { CandidateRef, CellIndex, Mask, SolverState, Step } from '../types';
@@ -15,6 +15,13 @@ export interface HintInput {
    */
   notes: readonly (Mask | null)[];
   solution: readonly number[];
+  /**
+   * Bilješke su djelomične (korisnik ne piše sve kandidate): ne provjeravaju se
+   * i ne koriste se. Rješavač tada radi nad stvarnim kandidatima umanjenim samo
+   * za `knownElim` — eliminacije koje su već primijenjene preko savjeta.
+   */
+  ignoreNotes?: boolean;
+  knownElim?: readonly Mask[];
 }
 
 /** Greška u korisnikovim brojevima ili bilješkama — javlja se prije svega ostalog. */
@@ -25,7 +32,13 @@ export type HintIssue =
 
 export type Hint =
   | { kind: 'solved' }
-  | ({ kind: 'issue'; text: string; details: string[] } & { issue: HintIssue })
+  | ({
+      kind: 'issue';
+      text: string;
+      details: string[];
+      /** Zašto je to problem — prikazuje se uz poruku. */
+      why: string[];
+    } & { issue: HintIssue })
   | { kind: 'step'; step: Step; text: StepText; candidates: Mask[] }
   | { kind: 'stuck'; text: string };
 
@@ -44,8 +57,14 @@ function blockingCell(values: readonly number[], cell: CellIndex, d: number): Ce
   return PEERS[cell].find((p) => values[p] === d);
 }
 
+/** "6 se ne nalazi ni u redu 1, ni u stupcu 3, ni u kvadratu 1" */
+function stillPossible(cell: CellIndex, d: number): string {
+  return `${d} se ne nalazi ni u redu ${rowOf(cell) + 1}, ni u stupcu ${colOf(cell) + 1}, ni u kvadratu ${boxOf(cell) + 1}, a nije ga isključila ni nijedna tehnika`;
+}
+
 export function findHint(input: HintInput): Hint {
-  const { values, givens, notes, solution } = input;
+  const { values, givens, solution } = input;
+  const notes = input.ignoreNotes ? values.map(() => null) : input.notes;
 
   // 1. Krivo upisani brojevi.
   const wrong: CellIndex[] = [];
@@ -59,6 +78,10 @@ export function findHint(input: HintInput): Hint {
           ? `U ćeliji ${cellRef(wrong[0])} upisan je krivi broj.`
           : `${wrong.length} upisana broja nisu točna:`,
       details: wrong.length === 1 ? [] : wrong.map((c) => `${cellRef(c)}: upisano ${values[c]}`),
+      why: [
+        'Sudoku ima samo jedno rješenje, a upisani broj se s njim ne slaže — negdje ranije potkrala se greška.',
+        'Dok krivi broj stoji u mreži, svi zaključci koji iz njega slijede mogu biti krivi, pa ga savjet prvo javlja.',
+      ],
     };
   }
 
@@ -79,7 +102,15 @@ export function findHint(input: HintInput): Hint {
         missing.length === 1
           ? `U ćeliji ${cellRef(missing[0].cell)} nedostaje kandidat ${missing[0].digit}.`
           : `U bilješkama nedostaju kandidati koji su mogući:`,
-      details: missing.length === 1 ? [] : missing.map((m) => `U ćeliji ${cellRef(m.cell)} nedostaje kandidat ${m.digit}.`),
+      details: missing.length === 1 ? [] : missing.map((m) => `${cellRef(m.cell)}: nedostaje ${m.digit}`),
+      why: [
+        'Savjet bilješke u ćeliji čita kao popis SVIH brojeva koji tamo još mogu doći.',
+        missing.length === 1
+          ? `Broj ${missing[0].digit} je ovdje još moguć: ${stillPossible(missing[0].cell, missing[0].digit)}.`
+          : 'Ti brojevi su još mogući: nema ih ni u redu, ni u stupcu, ni u kvadratu tih ćelija, a nije ih isključila nijedna tehnika.',
+        'Iz bilješki kojima nedostaje mogući broj lako se izvede krivi zaključak (npr. ćelija izgleda kao da ima samo jednog kandidata).',
+        'Ako bilješke namjerno pišeš samo djelomično, odaberi „Moje bilješke su djelomične” — savjet će ih tada zanemariti.',
+      ],
     };
   }
 
@@ -101,11 +132,18 @@ export function findHint(input: HintInput): Hint {
       issue: { kind: 'impossibleCandidate', items: impossible },
       text: impossible.length === 1 ? lines[0] : 'Neki kandidati u bilješkama nisu mogući:',
       details: impossible.length === 1 ? [] : lines,
+      why: [
+        'Isti broj već je upisan u istom redu, stupcu ili kvadratu, pa ovdje ne može doći.',
+        'Takav kandidat ne smeta rješavanju, ali zbunjuje: brisanjem bilješke postaju točnije.',
+      ],
     };
   }
 
   // 4. Najjednostavniji logički korak.
   const state = hintState(values, notes);
+  if (input.ignoreNotes && input.knownElim) {
+    for (let i = 0; i < 81; i++) state.candidates[i] &= ~input.knownElim[i];
+  }
   const step = findNextStep(state);
   if (!step) {
     return {

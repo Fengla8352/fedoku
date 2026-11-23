@@ -20,6 +20,7 @@ export function initialState(): GameState {
     givens: empty81(false),
     notes: empty81(0),
     autoElim: empty81(0),
+    knownElim: empty81(0),
     phase: 'entry',
     entryLayer: 'given',
     solution: null,
@@ -33,6 +34,7 @@ export function initialState(): GameState {
     hint: null,
     rating: null,
     source: 'manual',
+    partialNotes: false,
   };
 }
 
@@ -55,6 +57,7 @@ const snapshot = (s: GameState): Snapshot => ({
   givens: s.givens,
   notes: s.notes,
   autoElim: s.autoElim,
+  knownElim: s.knownElim,
 });
 
 /** Sprema trenutno stanje u povijest (prije promjene). */
@@ -242,6 +245,7 @@ export function reducer(s: GameState, a: Action): GameState {
   const next = baseReducer(s, a);
   if (
     next.hint &&
+    a.type !== 'setPartialNotes' &&
     (next.values !== s.values || next.notes !== s.notes || next.autoElim !== s.autoElim || next.autoCandidates !== s.autoCandidates)
   ) {
     return { ...next, hint: null };
@@ -258,7 +262,15 @@ function requestHint(s: GameState): GameState {
   const shown = displayedNotes(s);
   // U automatskom načinu svaka prazna ćelija "ima bilješke"; inače samo ćelije s nekom bilješkom.
   const notes = shown.map((m, i) => (s.values[i] ? null : s.autoCandidates || m ? m : null));
-  const data = findHint({ values: s.values, givens: s.givens, notes, solution: s.solution });
+  const data = findHint({
+    values: s.values,
+    givens: s.givens,
+    notes,
+    solution: s.solution,
+    // S automatskim kandidatima bilješke su uvijek potpune.
+    ignoreNotes: s.partialNotes && !s.autoCandidates,
+    knownElim: s.knownElim,
+  });
   // Greške se uvijek prikazuju odmah u cijelosti.
   return { ...s, hint: { level: data.kind === 'step' ? 1 : 3, data }, message: null };
 }
@@ -270,15 +282,18 @@ function applyHint(s: GameState): GameState {
     if (h.step.placement) return { ...placeValue(s, h.step.placement.cell, h.step.placement.digit), hint: null };
     const notes = [...s.notes];
     const autoElim = [...s.autoElim];
+    const knownElim = [...s.knownElim];
     for (const { cell, digit } of h.step.eliminations) {
+      knownElim[cell] |= bit(digit);
       if (s.autoCandidates) autoElim[cell] |= bit(digit);
+      else if (s.partialNotes) notes[cell] &= ~bit(digit);
       else {
         // Ćelija bez bilješki dobiva kandidate s kojima je savjet računao.
         if (!notes[cell]) notes[cell] = h.candidates[cell];
         notes[cell] &= ~bit(digit);
       }
     }
-    return { ...s, notes, autoElim, history: pushHistory(s), hint: null };
+    return { ...s, notes, autoElim, knownElim, history: pushHistory(s), hint: null };
   }
   if (h.kind === 'issue') {
     const issue = h.issue;
@@ -308,6 +323,8 @@ function baseReducer(s: GameState, a: Action): GameState {
       return applyHint(s);
     case 'closeHint':
       return { ...s, hint: null };
+    case 'setPartialNotes':
+      return requestHint({ ...s, partialNotes: a.value, hint: null });
     case 'select':
       return { ...s, selected: a.cell };
     case 'move':
@@ -332,13 +349,14 @@ function baseReducer(s: GameState, a: Action): GameState {
       };
     }
     case 'newEntry':
-      return { ...initialState(), autoCandidates: s.autoCandidates };
+      return { ...initialState(), autoCandidates: s.autoCandidates, partialNotes: s.partialNotes };
     case 'loadText': {
       try {
         const values = parseValues(a.text);
         return {
           ...initialState(),
           autoCandidates: s.autoCandidates,
+          partialNotes: s.partialNotes,
           values,
           givens: values.map((v) => v !== 0),
           message: { kind: 'info', text: 'Zagonetka učitana. Upiši svoje brojeve ako ih imaš, pa klikni "Provjeri i igraj".' },
@@ -361,6 +379,7 @@ function baseReducer(s: GameState, a: Action): GameState {
       const base: GameState = {
         ...initialState(),
         autoCandidates: s.autoCandidates,
+        partialNotes: s.partialNotes,
         values: [...a.values],
         givens: a.values.map((v) => v !== 0),
         source: a.source ?? 'manual',

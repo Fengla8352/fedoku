@@ -97,3 +97,46 @@ describe('savjet u igri', () => {
     throw new Error('nije pronađena eliminacija');
   });
 });
+
+describe('djelomične bilješke u igri', () => {
+  const MEDIUM = '.......6..16...45...3.8..7......1....5....9..14.2.............8..59..74..2.3..1.6';
+
+  it('djelomična bilješka → upozorenje; "djelomične" → odmah pravi savjet', () => {
+    let s = play();
+    const sol = s.solution!;
+    // U ćeliju upišemo samo jednu bilješku koja nije točan broj (kao na snimci).
+    const cell = s.values.findIndex((v) => !v);
+    const other = sol[cell] === 1 ? 2 : 1;
+    s = run(s, { type: 'togglePencil' }, { type: 'select', cell }, { type: 'input', digit: other }, { type: 'togglePencil' }, { type: 'hint' });
+    expect(s.hint?.data.kind).toBe('issue');
+    s = reducer(s, { type: 'setPartialNotes', value: true });
+    expect(s.partialNotes).toBe(true);
+    expect(s.hint?.data.kind).toBe('step');
+    expect(s.hint?.level).toBe(1);
+    // Postavka ostaje i za novu igru.
+    expect(reducer(s, { type: 'loadPuzzle', values: parseValues(EASY) }).partialNotes).toBe(true);
+  });
+
+  it('primijenjeno brisanje se pamti i ne ponavlja; Poništi ga vraća', () => {
+    let s = run(play(MEDIUM), { type: 'setPartialNotes', value: true });
+    s = reducer(s, { type: 'closeHint' });
+    for (let n = 0; n < 100; n++) {
+      s = run(s, { type: 'hint' });
+      const h = s.hint!.data;
+      if (h.kind !== 'step') throw new Error(h.kind);
+      if (!h.step.placement) {
+        const e = h.step.eliminations[0];
+        const before = s;
+        s = reducer(s, { type: 'applyHint' });
+        expect(s.knownElim[e.cell] & bit(e.digit)).not.toBe(0);
+        expect(s.notes[e.cell]).toBe(0); // djelomične bilješke se ne popunjavaju
+        const again = reducer(s, { type: 'hint' }).hint!.data;
+        expect(again.kind === 'step' && again.step.eliminations.some((x) => x.cell === e.cell && x.digit === e.digit)).toBe(false);
+        expect(reducer(s, { type: 'undo' }).knownElim).toEqual(before.knownElim);
+        return;
+      }
+      s = reducer(s, { type: 'applyHint' });
+    }
+    throw new Error('nije pronađena eliminacija');
+  });
+});
