@@ -36,7 +36,21 @@ export function PwaPrompt() {
     offlineReady: [offlineReady, setOfflineReady],
     needRefresh: [needRefresh, setNeedRefresh],
     updateServiceWorker,
-  } = useRegisterSW();
+  } = useRegisterSW({
+    // Preglednik sam provjerava novu verziju samo pri učitavanju stranice; instalirana
+    // aplikacija se rijetko ponovno učitava, pa provjeravamo i pri povratku u aplikaciju
+    // te svakih 30 minuta.
+    onRegisteredSW(_url, registration) {
+      if (!registration) return;
+      const check = () => {
+        if (navigator.onLine) registration.update().catch(() => {});
+      };
+      setInterval(check, 30 * 60 * 1000);
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') check();
+      });
+    },
+  });
 
   if (!offlineReady && !needRefresh) return null;
   return (
