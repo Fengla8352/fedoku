@@ -1,4 +1,7 @@
-import { useCallback, useEffect, useMemo, useReducer, useState } from 'react';
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
+import { DIFFICULTY_LABEL } from '../core/generator/grade';
+import type { Difficulty } from '../core/types';
+import { startGeneration, type GenerationJob } from '../game/generatorClient';
 import { findConflicts } from '../core/grid';
 import { digitCounts, displayedNotes, givensText, initialState, reducer } from '../game/reducer';
 import { loadGame, loadSettings, saveGame, saveSettings, type Settings, type Theme } from '../game/storage';
@@ -8,7 +11,7 @@ import { HintPanel } from './HintPanel';
 import { boardHint } from './hintMarks';
 import { Keypad } from './Keypad';
 import { MessageBar } from './MessageBar';
-import { NewGameSheet } from './NewGameSheet';
+import { NewGameSheet, type GeneratingState } from './NewGameSheet';
 import './styles.css';
 
 const THEME_NEXT: Record<Theme, Theme> = { system: 'light', light: 'dark', dark: 'system' };
@@ -47,6 +50,41 @@ export function App() {
   const [state, dispatch] = useReducer(reducer, undefined, () => loadGame() ?? initialState());
   const [settings, setSettings] = useState<Settings>(loadSettings);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [generating, setGenerating] = useState<GeneratingState | null>(null);
+  const job = useRef<GenerationJob | null>(null);
+
+  const cancelGenerate = useCallback(() => {
+    job.current?.cancel();
+    job.current = null;
+    setGenerating(null);
+  }, []);
+
+  const generate = useCallback((difficulty: Difficulty) => {
+    job.current?.cancel();
+    setGenerating({ difficulty, attempts: 0 });
+    const j = startGeneration(difficulty, (attempts) => setGenerating((g) => (g ? { ...g, attempts } : g)));
+    job.current = j;
+    j.promise.then(
+      (r) => {
+        if (job.current !== j) return;
+        job.current = null;
+        setGenerating(null);
+        setSheetOpen(false);
+        dispatch({ type: 'loadPuzzle', values: r.puzzle, rating: { difficulty: r.difficulty, hardest: r.hardest } });
+      },
+      (e: unknown) => {
+        if (job.current !== j) return;
+        job.current = null;
+        if (e instanceof DOMException && e.name === 'AbortError') return;
+        setGenerating({ difficulty, attempts: 0, error: 'Generiranje nije uspjelo. Pokušaj ponovno.' });
+      },
+    );
+  }, []);
+
+  const closeSheet = useCallback(() => {
+    cancelGenerate();
+    setSheetOpen(false);
+  }, [cancelGenerate]);
 
   useEffect(() => saveGame(state), [state]);
   useEffect(() => {
@@ -90,7 +128,14 @@ export function App() {
   return (
     <div className="app">
       <header className="top">
-        <h1>Fedoku</h1>
+        <div className="title">
+          <h1>Fedoku</h1>
+          {state.phase === 'play' && state.rating && (
+            <span className="chip" title="Težina prema najtežoj potrebnoj tehnici">
+              {'beyond' in state.rating ? 'Izvan dosega tehnika' : DIFFICULTY_LABEL[state.rating.difficulty]}
+            </span>
+          )}
+        </div>
         <div className="top-actions">
           <button
             type="button"
@@ -229,7 +274,16 @@ export function App() {
         onDigit={(d) => act({ type: 'input', digit: d })}
       />
 
-      {sheetOpen && <NewGameSheet currentText={givensText(state)} onAction={act} onClose={() => setSheetOpen(false)} />}
+      {sheetOpen && (
+        <NewGameSheet
+          currentText={givensText(state)}
+          generating={generating}
+          onGenerate={generate}
+          onCancelGenerate={cancelGenerate}
+          onAction={act}
+          onClose={closeSheet}
+        />
+      )}
     </div>
   );
 }

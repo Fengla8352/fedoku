@@ -601,3 +601,70 @@ button {
   gap: 8px;
   margin-top: 8px;
 }
+
+/* ---------- Generator ---------- */
+
+.title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.chip {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  white-space: nowrap;
+}
+.difficulty-list {
+  display: grid;
+  gap: 6px;
+}
+.btn.difficulty {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  text-align: left;
+}
+.btn.difficulty small {
+  color: var(--muted);
+  font-weight: 400;
+  font-size: 0.8rem;
+  text-align: right;
+}
+.generating {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.generating > span:nth-child(2) {
+  flex: 1;
+}
+.generating small {
+  color: var(--muted);
+}
+.spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--line);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.error-text {
+  color: var(--error);
+  font-size: 0.9rem;
+}

@@ -167,3 +167,23 @@ describe('ručni unos', () => {
     expect(s.solution).toBeNull();
   });
 });
+
+describe('ocjena težine u igri', () => {
+  it('ručno unesena zagonetka dobije ocjenu', () => {
+    const s = run(initialState(), { type: 'loadText', text: EASY }, { type: 'startFromEntry' });
+    expect(s.rating).toEqual({ difficulty: 'lako', hardest: 'nakedSingle' });
+  });
+  it('generirana zagonetka zadržava zadanu ocjenu', () => {
+    const s = reducer(initialState(), { type: 'loadPuzzle', values: parseValues(EASY), rating: { difficulty: 'lako', hardest: 'hiddenSingle' } });
+    expect(s.rating).toEqual({ difficulty: 'lako', hardest: 'hiddenSingle' });
+  });
+  it('zagonetka izvan dosega tehnika', () => {
+    const stuck = '6..23.4....89....3......62.5.....3.2.69..7...3...8..9....4....5.1..........85.9.4';
+    expect(reducer(initialState(), { type: 'loadPuzzle', values: parseValues(stuck) }).rating).toEqual({ beyond: true });
+  });
+  it('poruka o rješenju navodi najtežu tehniku', () => {
+    let s = playing();
+    for (let i = 0; i < 81; i++) if (!s.values[i]) s = run(s, { type: 'select', cell: i }, { type: 'input', digit: SOLUTION[i] });
+    expect(s.message?.text).toBe('Bravo, sudoku je riješen! Najteža potrebna tehnika: Goli single.');
+  });
+});

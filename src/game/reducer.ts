@@ -3,9 +3,11 @@ import { PEERS, ParseError, colOf, parseValues, rowOf, valuesToString } from '..
 import { cellName } from '../core/format';
 import { bit } from '../core/mask';
 import { checkUniqueness } from '../core/solver/backtrack';
+import { gradePuzzle } from '../core/generator/grade';
+import { techniqueName } from '../core/hints/explain';
 import { findHint } from '../core/hints/hint';
 import type { CellIndex, Mask } from '../core/types';
-import type { Action, GameState, Message, Snapshot } from './types';
+import type { Action, GameState, Message, Rating, Snapshot } from './types';
 import { MIN_GIVENS, checkEntry } from './validate';
 
 const HISTORY_LIMIT = 300;
@@ -29,6 +31,7 @@ export function initialState(): GameState {
     message: null,
     solved: false,
     hint: null,
+    rating: null,
   };
 }
 
@@ -59,6 +62,11 @@ const pushHistory = (s: GameState): Snapshot[] => [...s.history, snapshot(s)].sl
 const isSolved = (values: readonly number[], solution: readonly number[] | null) =>
   !!solution && values.every((v, i) => v === solution[i]);
 
+function solvedText(r: Rating | null): string {
+  if (r && !('beyond' in r)) return `Bravo, sudoku je riješen! Najteža potrebna tehnika: ${techniqueName(r.hardest)}.`;
+  return 'Bravo, sudoku je riješen!';
+}
+
 /** Upisuje broj u igri i briše ga iz bilješki susjeda. */
 function placeValue(s: GameState, cell: CellIndex, digit: number): GameState {
   const values = [...s.values];
@@ -77,7 +85,7 @@ function placeValue(s: GameState, cell: CellIndex, digit: number): GameState {
     history: pushHistory(s),
     wrong: s.wrong.filter((c) => c !== cell),
     solved,
-    message: solved ? { kind: 'success', text: 'Bravo, sudoku je riješen!' } : s.message,
+    message: solved ? { kind: 'success', text: solvedText(s.rating) } : s.message,
   };
 }
 
@@ -144,9 +152,22 @@ function erase(s: GameState): GameState {
   return { ...s, notes, history: pushHistory(s) };
 }
 
-function startPlay(s: GameState, solution: number[], wrong: CellIndex[], message: Message | null): GameState {
+/** Ocjena težine iz zadanih brojeva. */
+export function rate(values: readonly number[], givens: readonly boolean[]): Rating {
+  const g = gradePuzzle(values.map((v, i) => (givens[i] ? v : 0)));
+  return g.solvable ? { difficulty: g.difficulty, hardest: g.hardest } : { beyond: true };
+}
+
+function startPlay(
+  s: GameState,
+  solution: number[],
+  wrong: CellIndex[],
+  message: Message | null,
+  rating: Rating = rate(s.values, s.givens),
+): GameState {
   return {
     ...s,
+    rating,
     phase: 'play',
     solution,
     wrong,
@@ -342,7 +363,7 @@ function baseReducer(s: GameState, a: Action): GameState {
         values: [...a.values],
         givens: a.values.map((v) => v !== 0),
       };
-      return startPlay(base, u.solution, [], null);
+      return startPlay(base, u.solution, [], null, a.rating);
     }
     case 'backToEntry':
       return {
@@ -354,6 +375,7 @@ function baseReducer(s: GameState, a: Action): GameState {
         wrong: [],
         history: [],
         hint: null,
+        rating: null,
         message: { kind: 'info', text: 'Uređivanje zagonetke. Kad završiš, klikni "Provjeri i igraj".' },
       };
     case 'check': {

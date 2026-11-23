@@ -1,15 +1,32 @@
 import { useState } from 'react';
-import { parseValues } from '../core/grid';
-import { DIFFICULTY_LABEL, SAMPLES } from '../game/samples';
+import { DIFFICULTIES, DIFFICULTY_LABEL } from '../core/generator/grade';
+import type { Difficulty } from '../core/types';
 import type { Action } from '../game/types';
+
+export interface GeneratingState {
+  difficulty: Difficulty;
+  attempts: number;
+  error?: string;
+}
+
+const DIFFICULTY_INFO: Record<Difficulty, string> = {
+  lako: 'samo singleovi',
+  srednje: 'pointing, box-line, goli parovi',
+  tesko: 'skriveni parovi, X-Wing, XY-Wing',
+  ekspert: 'Swordfish, W-Wing, Skyscraper…',
+  ekstremno: 'XY-Chain, bojanje',
+};
 
 interface Props {
   currentText: string;
+  generating: GeneratingState | null;
+  onGenerate: (d: Difficulty) => void;
+  onCancelGenerate: () => void;
   onAction: (a: Action) => void;
   onClose: () => void;
 }
 
-export function NewGameSheet({ currentText, onAction, onClose }: Props) {
+export function NewGameSheet({ currentText, generating, onGenerate, onCancelGenerate, onAction, onClose }: Props) {
   const [text, setText] = useState('');
   const run = (a: Action) => {
     onAction(a);
@@ -24,6 +41,31 @@ export function NewGameSheet({ currentText, onAction, onClose }: Props) {
             ✕
           </button>
         </div>
+
+        <h3>Novi sudoku</h3>
+        <p className="hint-text">Težina se određuje prema najtežoj tehnici potrebnoj za rješenje.</p>
+        {generating && !generating.error ? (
+          <div className="generating" role="status">
+            <span className="spinner" aria-hidden />
+            <span>
+              Generiram ({DIFFICULTY_LABEL[generating.difficulty]})…
+              {generating.attempts > 0 && <small> pokušaj {generating.attempts + 1}</small>}
+            </span>
+            <button type="button" className="btn small" onClick={onCancelGenerate}>
+              Odustani
+            </button>
+          </div>
+        ) : (
+          <div className="difficulty-list">
+            {DIFFICULTIES.map((d) => (
+              <button key={d} type="button" className="btn difficulty" onClick={() => onGenerate(d)}>
+                <span>{DIFFICULTY_LABEL[d]}</span>
+                <small>{DIFFICULTY_INFO[d]}</small>
+              </button>
+            ))}
+          </div>
+        )}
+        {generating?.error && <p className="error-text">{generating.error}</p>}
 
         <h3>Ručni unos</h3>
         <p className="hint-text">Prepiši sudoku iz druge aplikacije — zadane brojeve i one koje si već riješio.</p>
@@ -49,21 +91,6 @@ export function NewGameSheet({ currentText, onAction, onClose }: Props) {
         >
           Učitaj tekst
         </button>
-
-        <h3>Primjeri</h3>
-        <p className="hint-text">Generator po težini dolazi uskoro.</p>
-        <div className="sample-grid">
-          {SAMPLES.map((s) => (
-            <button
-              key={s.difficulty}
-              type="button"
-              className="btn"
-              onClick={() => run({ type: 'loadPuzzle', values: parseValues(s.puzzle) })}
-            >
-              {DIFFICULTY_LABEL[s.difficulty]}
-            </button>
-          ))}
-        </div>
 
         {currentText.replace(/\./g, '').length > 0 && (
           <>

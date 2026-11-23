@@ -1,5 +1,5 @@
 import type { Hint } from '../core/hints/hint';
-import type { CellIndex, Mask } from '../core/types';
+import type { CellIndex, Difficulty, Mask, TechniqueId } from '../core/types';
 
 /** 'entry' = ručni unos zagonetke, 'play' = rješavanje. */
 export type Phase = 'entry' | 'play';
@@ -44,7 +44,11 @@ export interface GameState extends Snapshot {
   solved: boolean;
   /** Aktivni savjet i koliko je otkriven (1–3). */
   hint: HintView | null;
+  /** Ocjena težine trenutne zagonetke. */
+  rating: Rating | null;
 }
+
+export type Rating = { difficulty: Difficulty; hardest: TechniqueId } | { beyond: true };
 
 export interface HintView {
   level: 1 | 2 | 3;
@@ -63,7 +67,7 @@ export type Action =
   | { type: 'loadText'; text: string }
   | { type: 'setEntryLayer'; layer: EntryLayer }
   | { type: 'startFromEntry' }
-  | { type: 'loadPuzzle'; values: number[] }
+  | { type: 'loadPuzzle'; values: number[]; rating?: Rating }
   | { type: 'backToEntry' }
   | { type: 'check' }
   | { type: 'dismissMessage' }

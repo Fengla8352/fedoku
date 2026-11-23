@@ -33,7 +33,7 @@ const isArr81 = (a: unknown) => Array.isArray(a) && a.length === 81;
 export function loadGame(): GameState | null {
   const g = read<GameState>(GAME_KEY);
   if (!g || !isArr81(g.values) || !isArr81(g.givens) || !isArr81(g.notes) || !isArr81(g.autoElim)) return null;
-  return { ...g, history: Array.isArray(g.history) ? g.history : [], message: null, hint: null };
+  return { ...g, history: Array.isArray(g.history) ? g.history : [], message: null, hint: null, rating: g.rating ?? null };
 }
 
 export function saveGame(g: GameState): void {

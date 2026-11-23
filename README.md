@@ -12,6 +12,7 @@ src/
     grid.ts             geometrija (redovi/stupci/kvadrati, susjedi), parsiranje, sukobi
     candidates.ts       izračun kandidata, primjena koraka
     format.ts           "red X, stupac Y"
+    generator/          generator po težini (najteža potrebna tehnika), ocjena težine, seed RNG
     hints/              savjet: prvo greške (krivi broj, nedostaje/nemoguć kandidat),
                         zatim najjednostavniji korak + tekst za razine 1–3
     solver/
@@ -24,6 +25,7 @@ src/
     __tests__/
   game/                 stanje igre (čisti TS): reducer akcija, ručni unos i provjera,
                         poništi, bilješke/automatski kandidati, spremanje u localStorage
+  workers/              Web Worker za generiranje (sučelje ostaje odzivno)
   ui/                   React sučelje: mreža, tipkovnica, alati, izbornik "Nova igra"
 ```
 
