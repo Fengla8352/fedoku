@@ -1,3 +1,4 @@
+import type { Hint } from '../core/hints/hint';
 import type { CellIndex, Mask } from '../core/types';
 
 /** 'entry' = ručni unos zagonetke, 'play' = rješavanje. */
@@ -41,6 +42,13 @@ export interface GameState extends Snapshot {
   wrong: CellIndex[];
   message: Message | null;
   solved: boolean;
+  /** Aktivni savjet i koliko je otkriven (1–3). */
+  hint: HintView | null;
+}
+
+export interface HintView {
+  level: 1 | 2 | 3;
+  data: Hint;
 }
 
 export type Action =
@@ -58,4 +66,8 @@ export type Action =
   | { type: 'loadPuzzle'; values: number[] }
   | { type: 'backToEntry' }
   | { type: 'check' }
-  | { type: 'dismissMessage' };
+  | { type: 'dismissMessage' }
+  /** Prvi klik daje razinu 1, svaki sljedeći otkriva više (do 3). */
+  | { type: 'hint' }
+  | { type: 'applyHint' }
+  | { type: 'closeHint' };

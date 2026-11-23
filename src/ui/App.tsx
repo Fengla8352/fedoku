@@ -4,6 +4,8 @@ import { digitCounts, displayedNotes, givensText, initialState, reducer } from '
 import { loadGame, loadSettings, saveGame, saveSettings, type Settings, type Theme } from '../game/storage';
 import type { Action } from '../game/types';
 import { Board } from './Board';
+import { HintPanel } from './HintPanel';
+import { boardHint } from './hintMarks';
 import { Keypad } from './Keypad';
 import { MessageBar } from './MessageBar';
 import { NewGameSheet } from './NewGameSheet';
@@ -70,6 +72,8 @@ export function App() {
       else if (k === 'ArrowRight') dispatch({ type: 'move', dRow: 0, dCol: 1 });
       else if ((e.ctrlKey || e.metaKey) && k.toLowerCase() === 'z') dispatch({ type: 'undo' });
       else if (k === 'n' || k === 'p') dispatch({ type: 'togglePencil' });
+      else if (k === 'h' || k === '?') dispatch({ type: 'hint' });
+      else if (k === 'Escape') dispatch({ type: 'closeHint' });
       else return;
       e.preventDefault();
     };
@@ -81,6 +85,7 @@ export function App() {
   const conflicts = useMemo(() => findConflicts(state.values), [state.values]);
   const counts = useMemo(() => digitCounts(state.values), [state.values]);
   const isEntry = state.phase === 'entry';
+  const bHint = useMemo(() => boardHint(state.hint), [state.hint]);
 
   return (
     <div className="app">
@@ -148,8 +153,18 @@ export function App() {
         conflicts={conflicts}
         wrong={state.wrong}
         highlightSame={settings.highlightSame}
+        hint={bHint}
         onSelect={select}
       />
+
+      {state.hint && (
+        <HintPanel
+          hint={state.hint}
+          onMore={() => act({ type: 'hint' })}
+          onApply={() => act({ type: 'applyHint' })}
+          onClose={() => act({ type: 'closeHint' })}
+        />
+      )}
 
       {isEntry ? (
         <div className="toolbar">
@@ -189,6 +204,14 @@ export function App() {
             onClick={() => act({ type: 'toggleAuto' })}
           >
             <span aria-hidden>⋯</span>Auto
+          </button>
+          <button
+            type="button"
+            className={state.hint ? 'tool on' : 'tool'}
+            onClick={() => act({ type: 'hint' })}
+            disabled={state.solved}
+          >
+            <span aria-hidden>💡</span>Savjet
           </button>
           <button type="button" className="tool" onClick={() => act({ type: 'check' })}>
             <span aria-hidden>✓</span>Provjeri

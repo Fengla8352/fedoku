@@ -2,6 +2,7 @@ import { memo } from 'react';
 import { boxOf, colOf, rowOf } from '../core/grid';
 import { cellName } from '../core/format';
 import type { CellIndex, Mask } from '../core/types';
+import type { BoardHint } from './hintMarks';
 
 interface BoardProps {
   values: number[];
@@ -11,6 +12,7 @@ interface BoardProps {
   conflicts: Set<CellIndex>;
   wrong: CellIndex[];
   highlightSame: boolean;
+  hint: BoardHint | null;
   onSelect: (cell: CellIndex) => void;
 }
 
@@ -37,6 +39,12 @@ export const Board = memo(function Board(p: BoardProps) {
         }
         if (p.conflicts.has(i)) classes.push('conflict');
         if (wrong.has(i)) classes.push('wrong');
+        const h = p.hint;
+        if (h?.area.has(i)) classes.push('hint-area');
+        const role = h?.roles.get(i);
+        if (role) classes.push(`role role-${role}`);
+        const noteMask = v ? 0 : p.notes[i] || h?.candidates.get(i) || 0;
+        const marks = h?.marks.get(i);
         const label = `${cellName(i)}${v ? `: ${v}` : ', prazno'}`;
         return (
           <div
@@ -49,16 +57,20 @@ export const Board = memo(function Board(p: BoardProps) {
           >
             {v ? (
               <span className="value">{v}</span>
-            ) : p.notes[i] ? (
+            ) : noteMask || marks ? (
               <div className="notes">
-                {NOTE_DIGITS.map((d) => (
-                  <span
-                    key={d}
-                    className={p.highlightSame && d === selValue && p.notes[i] & (1 << d) ? 'note hl' : 'note'}
-                  >
-                    {p.notes[i] & (1 << d) ? d : ''}
-                  </span>
-                ))}
+                {NOTE_DIGITS.map((d) => {
+                  const present = (noteMask & (1 << d)) !== 0;
+                  const m = marks?.get(d);
+                  let cls = 'note';
+                  if (m) cls += ` mark-${m}`;
+                  else if (p.highlightSame && present && d === selValue) cls += ' hl';
+                  return (
+                    <span key={d} className={cls}>
+                      {present || m === 'place' ? d : ''}
+                    </span>
+                  );
+                })}
               </div>
             ) : null}
           </div>

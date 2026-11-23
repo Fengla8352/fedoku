@@ -12,6 +12,8 @@ src/
     grid.ts             geometrija (redovi/stupci/kvadrati, susjedi), parsiranje, sukobi
     candidates.ts       izračun kandidata, primjena koraka
     format.ts           "red X, stupac Y"
+    hints/              savjet: prvo greške (krivi broj, nedostaje/nemoguć kandidat),
+                        zatim najjednostavniji korak + tekst za razine 1–3
     solver/
       backtrack.ts      pretraživanje: broj rješenja, provjera jedinstvenosti
       stepSolver.ts     findNextStep (najjednostavniji korak), solveLogically

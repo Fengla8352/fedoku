@@ -3,6 +3,7 @@ import { PEERS, ParseError, colOf, parseValues, rowOf, valuesToString } from '..
 import { cellName } from '../core/format';
 import { bit } from '../core/mask';
 import { checkUniqueness } from '../core/solver/backtrack';
+import { findHint } from '../core/hints/hint';
 import type { CellIndex, Mask } from '../core/types';
 import type { Action, GameState, Message, Snapshot } from './types';
 import { MIN_GIVENS, checkEntry } from './validate';
@@ -27,6 +28,7 @@ export function initialState(): GameState {
     wrong: [],
     message: null,
     solved: false,
+    hint: null,
   };
 }
 
@@ -213,8 +215,77 @@ function move(s: GameState, dRow: number, dCol: number): GameState {
   return { ...s, selected: r * 9 + c };
 }
 
+/** Savjet vrijedi samo dok se mreža ne promijeni. */
 export function reducer(s: GameState, a: Action): GameState {
+  const next = baseReducer(s, a);
+  if (
+    next.hint &&
+    (next.values !== s.values || next.notes !== s.notes || next.autoElim !== s.autoElim || next.autoCandidates !== s.autoCandidates)
+  ) {
+    return { ...next, hint: null };
+  }
+  return next;
+}
+
+function requestHint(s: GameState): GameState {
+  if (s.phase !== 'play' || !s.solution) return s;
+  if (s.hint) {
+    if (s.hint.data.kind !== 'step' || s.hint.level === 3) return s;
+    return { ...s, hint: { ...s.hint, level: (s.hint.level + 1) as 2 | 3 } };
+  }
+  const shown = displayedNotes(s);
+  // U automatskom načinu svaka prazna ćelija "ima bilješke"; inače samo ćelije s nekom bilješkom.
+  const notes = shown.map((m, i) => (s.values[i] ? null : s.autoCandidates || m ? m : null));
+  const data = findHint({ values: s.values, givens: s.givens, notes, solution: s.solution });
+  // Greške se uvijek prikazuju odmah u cijelosti.
+  return { ...s, hint: { level: data.kind === 'step' ? 1 : 3, data }, message: null };
+}
+
+function applyHint(s: GameState): GameState {
+  const h = s.hint?.data;
+  if (!h) return s;
+  if (h.kind === 'step') {
+    if (h.step.placement) return { ...placeValue(s, h.step.placement.cell, h.step.placement.digit), hint: null };
+    const notes = [...s.notes];
+    const autoElim = [...s.autoElim];
+    for (const { cell, digit } of h.step.eliminations) {
+      if (s.autoCandidates) autoElim[cell] |= bit(digit);
+      else {
+        // Ćelija bez bilješki dobiva kandidate s kojima je savjet računao.
+        if (!notes[cell]) notes[cell] = h.candidates[cell];
+        notes[cell] &= ~bit(digit);
+      }
+    }
+    return { ...s, notes, autoElim, history: pushHistory(s), hint: null };
+  }
+  if (h.kind === 'issue') {
+    const issue = h.issue;
+    if (issue.kind === 'wrongValue') {
+      const values = [...s.values];
+      for (const c of issue.cells) values[c] = 0;
+      return { ...s, values, history: pushHistory(s), wrong: s.wrong.filter((c) => !issue.cells.includes(c)), hint: null };
+    }
+    const notes = [...s.notes];
+    const autoElim = [...s.autoElim];
+    for (const { cell, digit } of issue.items) {
+      if (issue.kind === 'missingCandidate') {
+        if (s.autoCandidates) autoElim[cell] &= ~bit(digit);
+        else notes[cell] |= bit(digit);
+      } else notes[cell] &= ~bit(digit);
+    }
+    return { ...s, notes, autoElim, history: pushHistory(s), hint: null };
+  }
+  return { ...s, hint: null };
+}
+
+function baseReducer(s: GameState, a: Action): GameState {
   switch (a.type) {
+    case 'hint':
+      return requestHint(s);
+    case 'applyHint':
+      return applyHint(s);
+    case 'closeHint':
+      return { ...s, hint: null };
     case 'select':
       return { ...s, selected: a.cell };
     case 'move':
@@ -282,6 +353,7 @@ export function reducer(s: GameState, a: Action): GameState {
         solved: false,
         wrong: [],
         history: [],
+        hint: null,
         message: { kind: 'info', text: 'Uređivanje zagonetke. Kad završiš, klikni "Provjeri i igraj".' },
       };
     case 'check': {
