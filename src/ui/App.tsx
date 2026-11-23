@@ -12,6 +12,7 @@ import { boardHint } from './hintMarks';
 import { Keypad } from './Keypad';
 import { MessageBar } from './MessageBar';
 import { NewGameSheet, type GeneratingState } from './NewGameSheet';
+import { PwaPrompt, useInstallPrompt } from './PwaPrompt';
 import './styles.css';
 
 const THEME_NEXT: Record<Theme, Theme> = { system: 'light', light: 'dark', dark: 'system' };
@@ -50,6 +51,7 @@ export function App() {
   const [state, dispatch] = useReducer(reducer, undefined, () => loadGame() ?? initialState());
   const [settings, setSettings] = useState<Settings>(loadSettings);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const install = useInstallPrompt();
   const [generating, setGenerating] = useState<GeneratingState | null>(null);
   const job = useRef<GenerationJob | null>(null);
 
@@ -137,6 +139,11 @@ export function App() {
           )}
         </div>
         <div className="top-actions">
+          {install && (
+            <button type="button" className="btn small" onClick={install}>
+              Instaliraj
+            </button>
+          )}
           <button
             type="button"
             className="icon-btn"
@@ -273,6 +280,8 @@ export function App() {
         showCounts={!isEntry}
         onDigit={(d) => act({ type: 'input', digit: d })}
       />
+
+      <PwaPrompt />
 
       {sheetOpen && (
         <NewGameSheet

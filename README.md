@@ -37,3 +37,15 @@ npm test          # Vitest
 npm run dev       # razvojni server
 npm run build
 ```
+
+## PWA (instalacija na mobitel, rad bez interneta)
+
+`npm run build` uz aplikaciju generira service worker (`dist/sw.js`) i manifest.
+Sve datoteke, uključujući Web Worker generatora, spremaju se u predmemoriju, pa
+aplikacija nakon prvog otvaranja radi i bez interneta. Kad postoji nova verzija,
+aplikacija ponudi "Osvježi" (ne osvježava se sama usred igre).
+
+Za instalaciju na mobitel `dist/` mora biti posluženo preko HTTPS-a (npr. GitHub
+Pages, Netlify, Cloudflare Pages). Putanje su relativne (`base: './'`), pa radi i u podmapi.
+- Android (Chrome): gumb "Instaliraj" u zaglavlju ili izbornik ⋮ → "Instaliraj aplikaciju".
+- iPhone (Safari): Dijeli → "Dodaj na početni zaslon".
