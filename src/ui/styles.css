@@ -92,13 +92,33 @@ button {
 }
 
 .app {
-  --board: min(calc(100vw - 16px), 520px);
+  /* Mreža je široka koliko ekran dopušta, ali ne viša nego što stane uz kontrole. */
+  --board: max(260px, min(calc(100vw - 16px), 520px, calc(100dvh - 330px)));
   width: var(--board);
+  min-height: 100dvh;
   margin: 0 auto;
   padding: 8px 0 24px;
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+/* Zaglavlje gore; mreža + alati + tipkovnica čine jednu skupinu koja stoji malo
+   ispod sredine ekrana (3/5 slobodnog prostora iznad, 2/5 ispod). */
+.play-area {
+  flex: 3 1 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 10px;
+}
+.controls {
+  flex: 2 1 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: 14px;
+  padding: 14px 0 8px;
 }
 
 .top {
@@ -299,11 +319,11 @@ button {
   border: 1px solid transparent;
   border-radius: 10px;
   padding: 6px 2px;
-  font-size: 0.72rem;
+  font-size: 0.78rem;
   color: var(--muted);
 }
 .tool span {
-  font-size: 1.25rem;
+  font-size: 1.6rem;
   color: var(--text);
   line-height: 1.1;
 }
@@ -337,14 +357,14 @@ button {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  aspect-ratio: 3 / 4;
+  aspect-ratio: 2 / 3;
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 10px;
   padding: 0;
 }
 .key-digit {
-  font-size: calc(var(--board) / 9 * 0.5);
+  font-size: calc(var(--board) / 9 * 0.62);
   font-weight: 500;
   color: var(--accent);
   line-height: 1.1;
@@ -354,7 +374,7 @@ button {
   color: var(--note);
 }
 .key-count {
-  font-size: 0.7rem;
+  font-size: 0.8rem;
   color: var(--muted);
 }
 .key.done {

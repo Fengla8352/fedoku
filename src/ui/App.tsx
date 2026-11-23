@@ -169,6 +169,7 @@ export function App() {
         </div>
       </header>
 
+      <main className="play-area">
       {isEntry && (
         <div className="entry-bar">
           <span className="entry-title">Ručni unos</span>
@@ -208,7 +209,9 @@ export function App() {
         hint={bHint}
         onSelect={select}
       />
+      </main>
 
+      <div className="controls">
       {state.hint && (
         <HintPanel
           hint={state.hint}
@@ -280,6 +283,7 @@ export function App() {
         showCounts={!isEntry}
         onDigit={(d) => act({ type: 'input', digit: d })}
       />
+      </div>
 
       <PwaPrompt />
 
