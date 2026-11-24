@@ -384,11 +384,11 @@ export function App() {
           </button>
           <button
             type="button"
-            className={state.hint ? 'tool on' : 'tool'}
-            onClick={() => act({ type: 'hint' })}
-            disabled={state.solved}
+            className={state.pencil ? 'tool on' : 'tool'}
+            aria-pressed={state.pencil}
+            onClick={() => act({ type: 'togglePencil' })}
           >
-            <span aria-hidden>💡</span>Savjet
+            <span aria-hidden>✎</span>Olovka
           </button>
           {/* Provjera i uređivanje imaju smisla samo za ručno unesene zagonetke. */}
           {state.source === 'manual' && (
@@ -403,11 +403,11 @@ export function App() {
           )}
           <button
             type="button"
-            className={state.pencil ? 'tool on' : 'tool'}
-            aria-pressed={state.pencil}
-            onClick={() => act({ type: 'togglePencil' })}
+            className={state.hint ? 'tool on' : 'tool'}
+            onClick={() => act({ type: 'hint' })}
+            disabled={state.solved}
           >
-            <span aria-hidden>✎</span>Olovka
+            <span aria-hidden>💡</span>Savjet
           </button>
         </div>
       )}
