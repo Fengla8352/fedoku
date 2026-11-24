@@ -24,14 +24,8 @@ export function boardHint(h: HintView | null): BoardHint | null {
     out.marks.get(cell)!.set(d, m);
   };
   const data = h.data;
-  if (data.kind === 'issue') {
-    const i = data.issue;
-    if (i.kind === 'wrongValue') i.cells.forEach((c) => out.area.add(c));
-    else
-      for (const { cell, digit } of i.items) {
-        out.area.add(cell);
-        mark(cell, digit, i.kind === 'missingCandidate' ? 'place' : 'elim');
-      }
+  if (data.kind === 'wrongValue') {
+    data.cells.forEach((c) => out.area.add(c));
     return out;
   }
   if (data.kind !== 'step') return out;

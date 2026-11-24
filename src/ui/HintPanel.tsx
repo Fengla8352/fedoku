@@ -3,11 +3,8 @@ import type { HintView } from '../game/types';
 
 interface Props {
   hint: HintView;
-  /** Bilješke se mogu proglasiti djelomičnim (samo bez automatskih kandidata). */
-  canUsePartialNotes: boolean;
-  /** Savjet trenutno zanemaruje bilješke. */
-  partialNotes: boolean;
-  onPartialNotes: (value: boolean) => void;
+  /** Kandidati (mali brojevi) nisu prikazani u mreži — treba ih objasniti. */
+  candidatesHidden: boolean;
   onMore: () => void;
   onApply: () => void;
   onClose: () => void;
@@ -15,7 +12,7 @@ interface Props {
 
 const ROLE_ORDER: CellRole[] = ['target', 'pivot', 'pincer', 'base', 'link', 'colorA', 'colorB'];
 
-export function HintPanel({ hint, canUsePartialNotes, partialNotes, onPartialNotes, onMore, onApply, onClose }: Props) {
+export function HintPanel({ hint, candidatesHidden, onMore, onApply, onClose }: Props) {
   const d = hint.data;
   const close = (
     <button type="button" className="btn" onClick={onClose}>
@@ -23,21 +20,10 @@ export function HintPanel({ hint, canUsePartialNotes, partialNotes, onPartialNot
     </button>
   );
 
-  if (d.kind === 'issue') {
-    const fix =
-      d.issue.kind === 'wrongValue'
-        ? 'Obriši kriv broj'
-        : d.issue.kind === 'missingCandidate'
-          ? d.issue.items.length === 1
-            ? 'Vrati kandidat'
-            : 'Vrati kandidate'
-          : d.issue.items.length === 1
-            ? 'Obriši kandidat'
-            : 'Obriši kandidate';
-    const notesIssue = d.issue.kind !== 'wrongValue';
+  if (d.kind === 'wrongValue') {
     return (
       <section className="hint-panel issue" aria-live="polite">
-        <h2>{notesIssue ? 'Prvo provjeri bilješke' : 'Prvo ispravi broj'}</h2>
+        <h2>{d.cells.length === 1 ? 'Broj nije točan' : 'Brojevi nisu točni'}</h2>
         <p>{d.text}</p>
         {d.details.length > 0 && (
           <ul>
@@ -46,21 +32,14 @@ export function HintPanel({ hint, canUsePartialNotes, partialNotes, onPartialNot
             ))}
           </ul>
         )}
-        <div className="hint-why">
-          <strong>Zašto?</strong>
-          {d.why.map((t) => (
-            <p key={t}>{t}</p>
-          ))}
-        </div>
+        <p className="hint-muted">
+          Sudoku ima samo jedno rješenje i ovaj se broj s njim ne slaže. Dok stoji u mreži, zaključci koji iz njega
+          slijede mogu biti krivi — zato ga savjet javlja prvo.
+        </p>
         <div className="hint-actions">
           {close}
-          {notesIssue && canUsePartialNotes && (
-            <button type="button" className="btn" onClick={() => onPartialNotes(true)}>
-              Moje bilješke su djelomične
-            </button>
-          )}
           <button type="button" className="btn primary" onClick={onApply}>
-            {fix}
+            {d.cells.length === 1 ? 'Obriši taj broj' : 'Obriši te brojeve'}
           </button>
         </div>
       </section>
@@ -80,7 +59,7 @@ export function HintPanel({ hint, canUsePartialNotes, partialNotes, onPartialNot
   return (
     <section className="hint-panel" aria-live="polite">
       <div className="hint-head">
-        <h2>{hint.level >= 2 ? t.techniqueName : 'Savjet'}</h2>
+        <h2>{t.techniqueName}</h2>
         <span className="hint-level" aria-label={`Razina ${hint.level} od 3`}>
           {[1, 2, 3].map((n) => (
             <span key={n} className={n <= hint.level ? 'dot on' : 'dot'} />
@@ -88,7 +67,18 @@ export function HintPanel({ hint, canUsePartialNotes, partialNotes, onPartialNot
         </span>
       </div>
 
-      {hint.level === 1 && <p>{t.level1}</p>}
+      {hint.level === 1 && (
+        <>
+          <p className="hint-what">
+            <strong>Što je to? </strong>
+            {t.description}
+          </p>
+          <p>
+            <strong>Gdje: </strong>
+            {t.level1}
+          </p>
+        </>
+      )}
 
       {hint.level >= 2 && (
         <>
@@ -101,6 +91,12 @@ export function HintPanel({ hint, canUsePartialNotes, partialNotes, onPartialNot
               </span>
             ))}
           </div>
+          {t.usesCandidates && candidatesHidden && (
+            <p className="hint-muted">
+              Mali brojevi u označenim ćelijama su <strong>kandidati</strong>: brojevi kojih još nema u redu, stupcu ni
+              kvadratu te ćelije (i koje ranije tehnike nisu isključile). Uključi „Auto” da ih vidiš u cijeloj mreži.
+            </p>
+          )}
         </>
       )}
 
@@ -115,20 +111,11 @@ export function HintPanel({ hint, canUsePartialNotes, partialNotes, onPartialNot
         </>
       )}
 
-      {partialNotes && (
-        <p className="hint-note">
-          Savjet ne gleda tvoje bilješke (djelomične bilješke).{' '}
-          <button type="button" className="link-btn" onClick={() => onPartialNotes(false)}>
-            Moje bilješke su potpune
-          </button>
-        </p>
-      )}
-
       <div className="hint-actions">
         {close}
         {hint.level < 3 ? (
           <button type="button" className="btn primary" onClick={onMore}>
-            {hint.level === 1 ? 'Koja tehnika?' : 'Objasni'}
+            {hint.level === 1 ? 'Pokaži uzorak' : 'Objasni korak po korak'}
           </button>
         ) : (
           <button type="button" className="btn primary" onClick={onApply}>

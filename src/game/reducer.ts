@@ -35,7 +35,6 @@ export function initialState(): GameState {
     hint: null,
     rating: null,
     source: 'manual',
-    partialNotes: false,
     elapsedMs: 0,
     paused: false,
   };
@@ -260,14 +259,20 @@ function move(s: GameState, dRow: number, dCol: number): GameState {
   return { ...s, selected: r * 9 + c };
 }
 
-/** Savjet vrijedi samo dok se mreža ne promijeni. */
+/**
+ * Savjet vrijedi dok se ne promijene brojevi u mreži ili kandidati s kojima je
+ * računao. Tvoje ručne bilješke savjet ne koristi, pa njihovo pisanje savjet
+ * ne zatvara (možeš bilježiti dok čitaš savjet).
+ */
 export function reducer(s: GameState, a: Action): GameState {
   if (s.paused && !ALLOWED_WHILE_PAUSED.has(a.type)) return s;
   const next = baseReducer(s, a);
   if (
     next.hint &&
-    a.type !== 'setPartialNotes' &&
-    (next.values !== s.values || next.notes !== s.notes || next.autoElim !== s.autoElim || next.autoCandidates !== s.autoCandidates)
+    (next.values !== s.values ||
+      next.knownElim !== s.knownElim ||
+      next.autoCandidates !== s.autoCandidates ||
+      (next.autoCandidates && next.autoElim !== s.autoElim))
   ) {
     return { ...next, hint: null };
   }
@@ -280,19 +285,15 @@ function requestHint(s: GameState): GameState {
     if (s.hint.data.kind !== 'step' || s.hint.level === 3) return s;
     return { ...s, hint: { ...s.hint, level: (s.hint.level + 1) as 2 | 3 } };
   }
-  const shown = displayedNotes(s);
-  // U automatskom načinu svaka prazna ćelija "ima bilješke"; inače samo ćelije s nekom bilješkom.
-  const notes = shown.map((m, i) => (s.values[i] ? null : s.autoCandidates || m ? m : null));
   const data = findHint({
     values: s.values,
     givens: s.givens,
-    notes,
     solution: s.solution,
-    // S automatskim kandidatima bilješke su uvijek potpune.
-    ignoreNotes: s.partialNotes && !s.autoCandidates,
     knownElim: s.knownElim,
+    // S automatskim kandidatima uzimaju se u obzir i tvoja (točna) brisanja.
+    userElim: s.autoCandidates ? s.autoElim : undefined,
   });
-  // Greške se uvijek prikazuju odmah u cijelosti.
+  // Greška u broju prikazuje se odmah u cijelosti.
   return { ...s, hint: { level: data.kind === 'step' ? 1 : 3, data }, message: null };
 }
 
@@ -307,31 +308,15 @@ function applyHint(s: GameState): GameState {
     for (const { cell, digit } of h.step.eliminations) {
       knownElim[cell] |= bit(digit);
       if (s.autoCandidates) autoElim[cell] |= bit(digit);
-      else if (s.partialNotes) notes[cell] &= ~bit(digit);
-      else {
-        // Ćelija bez bilješki dobiva kandidate s kojima je savjet računao.
-        if (!notes[cell]) notes[cell] = h.candidates[cell];
-        notes[cell] &= ~bit(digit);
-      }
+      // Tvoje bilješke se ne popunjavaju — samo se briše broj ako je ondje napisan.
+      notes[cell] &= ~bit(digit);
     }
     return { ...s, notes, autoElim, knownElim, history: pushHistory(s), hint: null };
   }
-  if (h.kind === 'issue') {
-    const issue = h.issue;
-    if (issue.kind === 'wrongValue') {
-      const values = [...s.values];
-      for (const c of issue.cells) values[c] = 0;
-      return { ...s, values, history: pushHistory(s), wrong: s.wrong.filter((c) => !issue.cells.includes(c)), hint: null };
-    }
-    const notes = [...s.notes];
-    const autoElim = [...s.autoElim];
-    for (const { cell, digit } of issue.items) {
-      if (issue.kind === 'missingCandidate') {
-        if (s.autoCandidates) autoElim[cell] &= ~bit(digit);
-        else notes[cell] |= bit(digit);
-      } else notes[cell] &= ~bit(digit);
-    }
-    return { ...s, notes, autoElim, history: pushHistory(s), hint: null };
+  if (h.kind === 'wrongValue') {
+    const values = [...s.values];
+    for (const c of h.cells) values[c] = 0;
+    return { ...s, values, history: pushHistory(s), wrong: s.wrong.filter((c) => !h.cells.includes(c)), hint: null };
   }
   return { ...s, hint: null };
 }
@@ -352,8 +337,6 @@ function baseReducer(s: GameState, a: Action): GameState {
       return applyHint(s);
     case 'closeHint':
       return { ...s, hint: null };
-    case 'setPartialNotes':
-      return requestHint({ ...s, partialNotes: a.value, hint: null });
     case 'select':
       return { ...s, selected: a.cell };
     case 'move':
@@ -378,14 +361,13 @@ function baseReducer(s: GameState, a: Action): GameState {
       };
     }
     case 'newEntry':
-      return { ...initialState(), autoCandidates: s.autoCandidates, partialNotes: s.partialNotes };
+      return { ...initialState(), autoCandidates: s.autoCandidates };
     case 'loadText': {
       try {
         const values = parseValues(a.text);
         return {
           ...initialState(),
           autoCandidates: s.autoCandidates,
-          partialNotes: s.partialNotes,
           values,
           givens: values.map((v) => v !== 0),
           message: { kind: 'info', text: 'Zagonetka učitana. Upiši svoje brojeve ako ih imaš, pa klikni "Provjeri i igraj".' },
@@ -408,7 +390,6 @@ function baseReducer(s: GameState, a: Action): GameState {
       const base: GameState = {
         ...initialState(),
         autoCandidates: s.autoCandidates,
-        partialNotes: s.partialNotes,
         values: [...a.values],
         givens: a.values.map((v) => v !== 0),
         source: a.source ?? 'manual',

@@ -796,3 +796,16 @@ button {
   visibility: hidden;
   pointer-events: none;
 }
+
+.hint-what {
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+.hint-what strong,
+.hint-panel p strong {
+  color: var(--text);
+}
+.hint-muted {
+  color: var(--muted);
+  font-size: 0.85rem;
+}

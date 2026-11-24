@@ -5,9 +5,13 @@ import { cellRef, cellsRef, describeEliminations, joinAnd, unitGen, unitLoc, uni
 
 export interface StepText {
   techniqueName: string;
-  /** Razina 1: gdje gledati, bez imena tehnike. */
+  /** Što je ta tehnika, općenito (za učenje) — prikazuje se od razine 1. */
+  description: string;
+  /** Radi li tehnika s kandidatima (malim brojevima), a ne samo s upisanim brojevima. */
+  usesCandidates: boolean;
+  /** Razina 1: gdje gledati (uz ime tehnike i opis). */
   level1: string;
-  /** Razina 2: ime tehnike i opis uzorka. */
+  /** Razina 2: opis konkretnog uzorka. */
   level2: string;
   /** Oznake uloga za legendu na razini 2 (npr. pivot → "središte"). */
   roles: Partial<Record<CellRole, string>>;
@@ -18,6 +22,46 @@ export interface StepText {
 }
 
 export const techniqueName = (id: TechniqueId): string => TECHNIQUES.find((t) => t.id === id)?.name ?? id;
+
+/** Kratko objašnjenje svake tehnike — što tražiš i zašto to vrijedi. */
+export const TECHNIQUE_INFO: Record<TechniqueId, string> = {
+  nakedSingle:
+    'Ćelija u kojoj, kad isključiš brojeve koji su već u njezinu redu, stupcu i kvadratu, ostaje samo jedan mogući broj.',
+  hiddenSingle:
+    'Broj koji u nekom redu, stupcu ili kvadratu ima samo jedno moguće mjesto — mora doći baš tamo, čak i ako ta ćelija ima više kandidata.',
+  pointing:
+    'Ako je u kvadratu neki broj moguć samo u jednom redu (ili stupcu), onda taj broj u tom redu mora biti unutar kvadrata — pa se briše iz ostatka reda.',
+  boxLine:
+    'Ako je u redu (ili stupcu) neki broj moguć samo unutar jednog kvadrata, onda u tom kvadratu taj broj mora biti baš u tom redu — pa se briše iz ostatka kvadrata.',
+  nakedPair:
+    'Dvije ćelije u istom redu, stupcu ili kvadratu koje imaju samo ista dva kandidata. Ta dva broja sigurno zauzimaju te dvije ćelije, pa se brišu iz ostalih ćelija te jedinice.',
+  nakedTriple:
+    'Tri ćelije u istoj jedinici koje zajedno imaju samo tri kandidata. Ti brojevi zauzimaju te tri ćelije, pa se brišu iz ostalih ćelija jedinice.',
+  hiddenPair:
+    'Dva broja koja u nekoj jedinici mogu doći samo u iste dvije ćelije. Te ćelije zato moraju biti baš ta dva broja, pa se iz njih brišu svi ostali kandidati.',
+  hiddenTriple:
+    'Tri broja koja u nekoj jedinici mogu doći samo u iste tri ćelije. Iz tih ćelija se brišu svi ostali kandidati.',
+  xWing:
+    'Broj koji u dva reda može biti samo u ista dva stupca (ili obrnuto). Ta četiri mjesta čine pravokutnik: broj je u dva suprotna kuta, pa se briše iz ostatka tih stupaca.',
+  xyWing:
+    'Tri ćelije s po dva kandidata: središte {x,y} i dva kraka {x,z} i {y,z} koje središte vidi. Kakvo god bilo središte, jedan krak je z — pa z ne može biti u ćeliji koja vidi oba kraka.',
+  remotePair:
+    'Lanac ćelija s istim parom kandidata u kojem svaka vidi sljedeću, pa se vrijednosti izmjenjuju. Ćelija koja vidi dva kraja suprotne "boje" ne može imati nijedan od ta dva broja.',
+  xyzWing:
+    'Kao XY-Wing, ali središte ima tri kandidata {x,y,z}. Jedna od tri ćelije sigurno je z, pa z ne može biti u ćeliji koja vidi sve tri.',
+  swordfish:
+    'X-Wing na tri reda i tri stupca: broj je u tri reda moguć samo u ista tri stupca, pa se briše iz ostatka tih stupaca.',
+  wWing:
+    'Dvije ćelije s istim parom {x,y} koje se ne vide, a povezuje ih "jaka veza" na x (x je u nekoj jedinici moguć samo na dva mjesta, jedno vidi prvu, drugo drugu ćeliju). Barem jedna od njih je y.',
+  skyscraper:
+    'Broj koji je u dva reda (ili stupca) moguć na točno dva mjesta, a dva od tih mjesta su u istom stupcu ("temelji"). Jedan od druga dva mjesta ("vrhova") sigurno je taj broj.',
+  xyChain:
+    'Lanac ćelija s po dva kandidata koje se vide redom. Ako početak nije z, lanac "gura" vrijednosti do kraja koji tada mora biti z — pa je z sigurno na jednom od krajeva.',
+  simpleColoring:
+    'Gledaš samo jedan broj. Parove mjesta (gdje je broj u jedinici moguć na točno dva mjesta) povezuješ u lanac i bojaš naizmjence; jedna boja je točna, druga nije.',
+};
+
+const USES_VALUES_ONLY = new Set<TechniqueId>(['hiddenSingle']);
 
 /** Zašto znamenka d ne može biti u ćeliji (upisani brojevi u redu/stupcu/kvadratu). */
 function blocker(s: SolverState, cell: CellIndex, d: Digit): Unit | null {
@@ -47,11 +91,27 @@ const lookArea = (step: Step): string => {
 
 const ELIM_HINT = 'Ovdje se može obrisati barem jedan kandidat.';
 
+/** Tekst savjeta za korak. Naslov već sadrži ime tehnike, pa ga opis uzorka ne ponavlja. */
 export function explainStep(step: Step, s: SolverState): StepText {
+  const t = explainRaw(step, s);
+  const prefix = `${t.techniqueName}: `;
+  if (t.level2.startsWith(prefix)) {
+    const rest = t.level2.slice(prefix.length);
+    t.level2 = rest.charAt(0).toUpperCase() + rest.slice(1);
+  }
+  return t;
+}
+
+function explainRaw(step: Step, s: SolverState): StepText {
   const name = techniqueName(step.technique);
   const ex = step.explanation;
   const result = resultText(step);
-  const base = { techniqueName: name, result };
+  const base = {
+    techniqueName: name,
+    description: TECHNIQUE_INFO[step.technique],
+    usesCandidates: !USES_VALUES_ONLY.has(step.technique),
+    result,
+  };
 
   switch (ex.kind) {
     case 'nakedSingle': {

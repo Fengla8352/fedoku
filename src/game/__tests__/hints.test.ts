@@ -33,30 +33,6 @@ describe('savjet u igri', () => {
     expect(s.hint).toBeNull();
   });
 
-  it('greška u broju se prikazuje odmah u cijelosti i "Primijeni" je briše', () => {
-    let s = run(play(), { type: 'select', cell: 0 }, { type: 'input', digit: 5 }, { type: 'hint' });
-    expect(s.hint?.level).toBe(3);
-    expect(s.hint?.data.kind).toBe('issue');
-    s = reducer(s, { type: 'applyHint' });
-    expect(s.values[0]).toBe(0);
-  });
-
-  it('nedostajući kandidat se vraća u automatske kandidate', () => {
-    let s = run(play(), { type: 'toggleAuto' }, { type: 'togglePencil' }, { type: 'select', cell: 0 }, { type: 'input', digit: 4 });
-    expect(digitsOf(displayedNotes(s)[0])).toEqual([5]);
-    s = run(s, { type: 'hint' });
-    expect(s.hint?.data.kind).toBe('issue');
-    s = reducer(s, { type: 'applyHint' });
-    expect(digitsOf(displayedNotes(s)[0])).toEqual([4, 5]);
-  });
-
-  it('obrisani svi automatski kandidati u ćeliji javljaju grešku', () => {
-    let s = run(play(), { type: 'toggleAuto' }, { type: 'togglePencil' }, { type: 'select', cell: 0 }, { type: 'input', digit: 4 }, { type: 'input', digit: 5 });
-    expect(displayedNotes(s)[0]).toBe(0);
-    s = run(s, { type: 'hint' });
-    expect(s.hint?.data.kind).toBe('issue');
-  });
-
   it('eliminacija se primjenjuje na bilješke', () => {
     // Stanje s automatskim kandidatima, rješavamo dok savjet ne bude eliminacija.
     let s = run(play('.......6..16...45...3.8..7......1....5....9..14.2.............8..59..74..2.3..1.6'), { type: 'toggleAuto' });
@@ -79,47 +55,30 @@ describe('savjet u igri', () => {
     throw new Error('nije pronađena eliminacija');
   });
 
-  it('eliminacija bez automatskih kandidata popuni bilješke ćelije', () => {
-    let s = play('.......6..16...45...3.8..7......1....5....9..14.2.............8..59..74..2.3..1.6');
-    for (let n = 0; n < 100; n++) {
-      s = run(s, { type: 'hint' });
-      const h = s.hint!.data;
-      if (h.kind !== 'step') throw new Error(h.kind);
-      if (!h.step.placement) {
-        const e = h.step.eliminations[0];
-        s = reducer(s, { type: 'applyHint' });
-        expect(s.notes[e.cell]).not.toBe(0);
-        expect(s.notes[e.cell] & bit(e.digit)).toBe(0);
-        return;
-      }
-      s = reducer(s, { type: 'applyHint' });
-    }
-    throw new Error('nije pronađena eliminacija');
+  it('krivi broj se javlja odmah u cijelosti i "Primijeni" ga briše', () => {
+    let s = run(play(), { type: 'select', cell: 0 }, { type: 'input', digit: 5 }, { type: 'hint' });
+    expect(s.hint?.level).toBe(3);
+    expect(s.hint?.data.kind).toBe('wrongValue');
+    s = reducer(s, { type: 'applyHint' });
+    expect(s.values[0]).toBe(0);
   });
-});
 
-describe('djelomične bilješke u igri', () => {
-  const MEDIUM = '.......6..16...45...3.8..7......1....5....9..14.2.............8..59..74..2.3..1.6';
-
-  it('djelomična bilješka → upozorenje; "djelomične" → odmah pravi savjet', () => {
-    let s = play();
-    const sol = s.solution!;
-    // U ćeliju upišemo samo jednu bilješku koja nije točan broj (kao na snimci).
-    const cell = s.values.findIndex((v) => !v);
-    const other = sol[cell] === 1 ? 2 : 1;
-    s = run(s, { type: 'togglePencil' }, { type: 'select', cell }, { type: 'input', digit: other }, { type: 'togglePencil' }, { type: 'hint' });
-    expect(s.hint?.data.kind).toBe('issue');
-    s = reducer(s, { type: 'setPartialNotes', value: true });
-    expect(s.partialNotes).toBe(true);
+  it('djelomične ili krive bilješke ne blokiraju savjet', () => {
+    const s0 = play();
+    const cell = s0.values.findIndex((v) => !v);
+    const other = s0.solution![cell] === 1 ? 2 : 1;
+    const s = run(s0, { type: 'togglePencil' }, { type: 'select', cell }, { type: 'input', digit: other }, { type: 'togglePencil' }, { type: 'hint' });
     expect(s.hint?.data.kind).toBe('step');
-    expect(s.hint?.level).toBe(1);
-    // Postavka ostaje i za novu igru.
-    expect(reducer(s, { type: 'loadPuzzle', values: parseValues(EASY) }).partialNotes).toBe(true);
   });
 
-  it('primijenjeno brisanje se pamti i ne ponavlja; Poništi ga vraća', () => {
-    let s = run(play(MEDIUM), { type: 'setPartialNotes', value: true });
-    s = reducer(s, { type: 'closeHint' });
+  it('pisanje bilješki ne zatvara savjet', () => {
+    const s = run(play(), { type: 'hint' }, { type: 'togglePencil' }, { type: 'select', cell: 0 }, { type: 'input', digit: 4 });
+    expect(s.notes[0]).not.toBe(0);
+    expect(s.hint).not.toBeNull();
+  });
+
+  it('brisanje iz savjeta ne upisuje brojeve u bilješke, pamti se, ne ponavlja i Poništi ga vraća', () => {
+    let s = play('.......6..16...45...3.8..7......1....5....9..14.2.............8..59..74..2.3..1.6');
     for (let n = 0; n < 100; n++) {
       s = run(s, { type: 'hint' });
       const h = s.hint!.data;
@@ -128,8 +87,8 @@ describe('djelomične bilješke u igri', () => {
         const e = h.step.eliminations[0];
         const before = s;
         s = reducer(s, { type: 'applyHint' });
+        expect(s.notes).toEqual(before.notes); // bilješke se ne popunjavaju
         expect(s.knownElim[e.cell] & bit(e.digit)).not.toBe(0);
-        expect(s.notes[e.cell]).toBe(0); // djelomične bilješke se ne popunjavaju
         const again = reducer(s, { type: 'hint' }).hint!.data;
         expect(again.kind === 'step' && again.step.eliminations.some((x) => x.cell === e.cell && x.digit === e.digit)).toBe(false);
         expect(reducer(s, { type: 'undo' }).knownElim).toEqual(before.knownElim);
@@ -138,5 +97,19 @@ describe('djelomične bilješke u igri', () => {
       s = reducer(s, { type: 'applyHint' });
     }
     throw new Error('nije pronađena eliminacija');
+  });
+
+  it('s Auto: obrisan točan kandidat ne kvari savjet', () => {
+    let s = run(play(), { type: 'toggleAuto' }, { type: 'togglePencil' }, { type: 'select', cell: 0 }, { type: 'input', digit: 4 }, { type: 'togglePencil' });
+    expect(digitsOf(displayedNotes(s)[0])).toEqual([5]); // korisnik je obrisao točnu 4
+    for (let n = 0; n < 200 && !s.solved; n++) {
+      s = run(s, { type: 'hint' });
+      const h = s.hint!.data;
+      if (h.kind !== 'step') throw new Error(h.kind);
+      if (h.step.placement) expect(h.step.placement.digit).toBe(s.solution![h.step.placement.cell]);
+      for (const e of h.step.eliminations) expect(e.digit).not.toBe(s.solution![e.cell]);
+      s = reducer(s, { type: 'applyHint' });
+    }
+    expect(s.solved).toBe(true);
   });
 });
