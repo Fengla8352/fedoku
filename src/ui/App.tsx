@@ -5,6 +5,8 @@ import { startGeneration, type GenerationJob } from '../game/generatorClient';
 import { findConflicts } from '../core/grid';
 import { digitCounts, displayedNotes, givensText, initialState, reducer, timerRunning } from '../game/reducer';
 import { formatTime } from '../game/time';
+import { boardWave, completedUnits, newlyPlaced, unitWave } from '../game/completion';
+import { techniqueName } from '../core/hints/explain';
 import { loadGame, loadSettings, saveGame, saveSettings, type Settings, type Theme } from '../game/storage';
 import type { Action } from '../game/types';
 import { Board } from './Board';
@@ -135,6 +137,34 @@ export function App() {
   const select = useCallback((cell: number) => dispatch({ type: 'select', cell }), []);
   const resume = useCallback(() => dispatch({ type: 'resume' }), []);
 
+  // Animacije: val kroz dovršeni red/stupac/kvadrat, val preko cijele mreže kad je riješeno.
+  const [wave, setWave] = useState<{ key: number; delays: Map<number, number> } | null>(null);
+  const [solvedCard, setSolvedCard] = useState(false);
+  const prevValues = useRef(state.values);
+  useEffect(() => {
+    const prev = prevValues.current;
+    prevValues.current = state.values;
+    if (prev === state.values || state.phase !== 'play' || !state.solution) return;
+    const cell = newlyPlaced(prev, state.values);
+    if (cell === null) return;
+    if (state.solved) {
+      setWave({ key: Date.now(), delays: boardWave() });
+      setSolvedCard(true);
+      return;
+    }
+    const units = completedUnits(state.values, state.solution, cell);
+    if (units.length) setWave({ key: Date.now(), delays: unitWave(units, cell) });
+  }, [state.values, state.phase, state.solution, state.solved]);
+  useEffect(() => {
+    if (!wave) return;
+    const longest = Math.max(...wave.delays.values()) + 900;
+    const id = setTimeout(() => setWave(null), longest);
+    return () => clearTimeout(id);
+  }, [wave]);
+  useEffect(() => {
+    if (!state.solved) setSolvedCard(false);
+  }, [state.solved]);
+
   // Tipkovnica (računalo).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -228,7 +258,11 @@ export function App() {
         </div>
       )}
 
-      <MessageBar message={state.message} onClose={() => act({ type: 'dismissMessage' })} />
+      {/* Kad je sudoku riješen, poruku zamjenjuje kartica na mreži (bez pomicanja mreže). */}
+      <MessageBar
+        message={state.solved && state.message?.kind === 'success' ? null : state.message}
+        onClose={() => act({ type: 'dismissMessage' })}
+      />
 
       {!isEntry && (
         <div className="status-row">
@@ -267,6 +301,7 @@ export function App() {
         </div>
       )}
 
+      <div className="board-wrap">
       <Board
         values={state.values}
         givens={state.givens}
@@ -278,8 +313,31 @@ export function App() {
         hint={state.paused ? null : bHint}
         paused={state.paused}
         onResume={resume}
+        wave={wave}
         onSelect={select}
       />
+      {solvedCard && state.solved && (
+        <div className="solved-card" role="status">
+          <div className="solved-inner">
+            <p className="solved-title">Riješeno!</p>
+            <p className="solved-time">{formatTime(state.elapsedMs)}</p>
+            {state.rating && !('beyond' in state.rating) && (
+              <p className="solved-meta">
+                {DIFFICULTY_LABEL[state.rating.difficulty]} · najteža tehnika: {techniqueName(state.rating.hardest)}
+              </p>
+            )}
+            <div className="solved-actions">
+              <button type="button" className="btn" onClick={() => setSolvedCard(false)}>
+                Pogledaj mrežu
+              </button>
+              <button type="button" className="btn primary" onClick={() => { setSolvedCard(false); setSheetOpen(true); }}>
+                Nova igra
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      </div>
       </main>
 
       <div className={state.paused ? 'controls locked' : 'controls'} aria-disabled={state.paused}>

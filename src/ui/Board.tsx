@@ -15,6 +15,8 @@ interface BoardProps {
   hint: BoardHint | null;
   /** Pauza: brojevi i bilješke se ne prikazuju. */
   paused?: boolean;
+  /** Animacija vala: kašnjenje (ms) po ćeliji; `key` ponovno pokreće animaciju. */
+  wave?: { key: number; delays: Map<CellIndex, number> } | null;
   onResume?: () => void;
   onSelect: (cell: CellIndex) => void;
 }
@@ -69,13 +71,17 @@ export const Board = memo(function Board(p: BoardProps) {
         const noteMask = v ? 0 : p.notes[i] || h?.candidates.get(i) || 0;
         const marks = h?.marks.get(i);
         const label = `${cellName(i)}${v ? `: ${v}` : ', prazno'}`;
+        const delay = p.wave?.delays.get(i);
+        if (delay !== undefined) classes.push('wave');
         return (
           <div
-            key={i}
+            // Nova vrijednost ključa ponovno pokreće animaciju iste ćelije.
+            key={delay !== undefined ? `${i}-${p.wave!.key}` : i}
             role="gridcell"
             aria-label={label}
             aria-selected={i === sel}
             className={classes.join(' ')}
+            style={delay !== undefined ? ({ '--d': `${delay}ms` } as React.CSSProperties) : undefined}
             onPointerDown={() => p.onSelect(i)}
           >
             {v ? (
